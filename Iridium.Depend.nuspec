@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<package>
+    <metadata>
+        <id>iridium.depend</id>
+        <version>2.0.1.7071</version>
+        <authors>Philippe Leybaert</authors>
+        <owners>Philippe Leybaert</owners>
+        <licenseUrl>https://raw.githubusercontent.com/activa/iridium-depend/master/LICENSE</licenseUrl>
+        <projectUrl>http://github.com/activa/iridium-depend</projectUrl>
+        <iconUrl>http://www.iridiumdb.com/img/IconPlain64.png</iconUrl>
+        <requireLicenseAcceptance>false</requireLicenseAcceptance>
+        <description>Dependency injection library for .NET</description>
+        <tags>iridium dependency injection ioc di</tags>
+        <dependencies>
+            <dependency id="iridium.reflection" version="2.0.1.7071" />
+        </dependencies>
+    </metadata>
+    <files>
+        <file src="src\Iridium.Depend\bin\Release\netstandard1.0\*.dll" target="lib\netstandard1.0" />
+        <file src="src\Iridium.Depend\bin\Release\netstandard1.3\*.dll" target="lib\netstandard1.3" />
+        <file src="src\Iridium.Depend\bin\Release\netstandard2.0\*.dll" target="lib\netstandard2.0" />
+        <file src="src\Iridium.Depend\bin\Release\net45\*.dll" target="lib\net45" />
+    </files>
+</package>
