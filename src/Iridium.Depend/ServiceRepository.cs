@@ -104,6 +104,12 @@ namespace Iridium.Depend
         }
 
         private readonly List<ServiceDefinition> _services = new List<ServiceDefinition>();
+        private readonly ServiceRepository _parent;
+
+        public ServiceRepository() { }
+        public ServiceRepository(ServiceRepository parent) => _parent = parent;
+
+        public ServiceRepository CreateChild() => new ServiceRepository(this);
 
         public T Get<T>()
         {
@@ -112,12 +118,23 @@ namespace Iridium.Depend
 
         private bool CanResolve(Type type)
         {
-            return _services.Any(service => service.IsMatch(type));
+            return Services.Any(service => service.IsMatch(type));
+        }
+
+        private IEnumerable<ServiceDefinition> Services
+        {
+            get
+            {
+                if (_parent == null)
+                    return _services;
+
+                return  _parent.Services.Union(_services);
+            }
         }
 
         public object Get(Type type)
         {
-            foreach (var service in _services.Where(svc => svc.IsMatch(type)))
+            foreach (var service in Services.Where(svc => svc.IsMatch(type)))
             {
                 object obj = service.Object;
 
@@ -150,9 +167,39 @@ namespace Iridium.Depend
             return constructor.Invoke(constructor.GetParameters().Select(p => Get(p.ParameterType)).ToArray());
         }
 
+        public object Create(Type type, params (Type t, object value)[] parameters)
+        {
+            var childRepo = CreateChild();
+
+            foreach (var (t, value) in parameters)
+            {
+                childRepo.Register(t, value);
+            }
+
+            return childRepo.Create(type);
+        }
+
         public T Create<T>() where T : class
         {
             return (T)Create(typeof(T));
+        }
+
+        public T Create<T>(params object[] parameters) where T : class
+        {
+            if (parameters.Any(p => p == null))
+                throw new ArgumentException("Parameter for Create<> without type can't be null");
+
+            return (T)Create(typeof(T), parameters.Select(p => (p.GetType(), p)).ToArray());
+        }
+
+        public T Create<T,TP1>(TP1 p1) where T : class
+        {
+            return (T)Create(typeof(T), (typeof(TP1),p1));
+        }
+
+        public T Create<T, TP1, TP2>(TP1 p1, TP2 p2) where T : class
+        {
+            return (T)Create(typeof(T), (typeof(TP1), p1), (typeof(TP2), p2));
         }
 
         public void UnRegister<T>()
@@ -177,6 +224,15 @@ namespace Iridium.Depend
         public IServiceRegistrationResult Register(Type type)
         {
             var serviceDefinition = new ServiceDefinition(type);
+
+            _services.Add(serviceDefinition);
+
+            return new RegistrationResult(this, serviceDefinition);
+        }
+
+        public IServiceRegistrationResult Register(Type type, object obj)
+        {
+            var serviceDefinition = new ServiceDefinition(type, obj);
 
             _services.Add(serviceDefinition);
 
