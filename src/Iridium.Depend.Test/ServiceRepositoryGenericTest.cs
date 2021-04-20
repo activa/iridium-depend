@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Iridium.Reflection;
 using NUnit.Framework;
 
 namespace Iridium.Depend.Test
@@ -67,21 +66,23 @@ namespace Iridium.Depend.Test
         }
 
         [Test]
+        [Repeat(1000)]
         public void AssignableTests()
         {
-            Assert.True(typeof(GenericService1Int).Inspector().IsAssignableTo(typeof(IGenericService1<>)));
-            Assert.False(typeof(GenericService1Int).Inspector().IsAssignableTo(typeof(IGenericService2<>)));
-            Assert.True(typeof(GenericService1<int>).Inspector().IsAssignableTo(typeof(IGenericService1<>)));
-            Assert.True(typeof(GenericService2<int>).Inspector().IsAssignableTo(typeof(IGenericService2<>)));
-            Assert.False(typeof(GenericService1<int>).Inspector().IsAssignableTo(typeof(IGenericService2<>)));
-            Assert.False(typeof(GenericService2<int>).Inspector().IsAssignableTo(typeof(IGenericService1<>)));
+            Assert.True(typeof(GenericService1Int).IsAssignableTo(typeof(IGenericService1<>)));
+            Assert.False(typeof(GenericService1Int).IsAssignableTo(typeof(IGenericService2<>)));
+            Assert.True(typeof(GenericService1<int>).IsAssignableTo(typeof(IGenericService1<>)));
+            Assert.True(typeof(GenericService2<int>).IsAssignableTo(typeof(IGenericService2<>)));
+            Assert.False(typeof(GenericService1<int>).IsAssignableTo(typeof(IGenericService2<>)));
+            Assert.False(typeof(GenericService2<int>).IsAssignableTo(typeof(IGenericService1<>)));
 
-            Assert.True(typeof(GenericService1<>).Inspector().IsAssignableTo(typeof(IGenericService1<>)));
+            Assert.True(typeof(GenericService1<>).IsAssignableTo(typeof(IGenericService1<>)));
         }
 
 
 
         [Test]
+        [Repeat(1000)]
         public void SimpleInterface()
         {
             ServiceRepository repo = new ServiceRepository();
@@ -101,6 +102,7 @@ namespace Iridium.Depend.Test
         }
 
         [Test]
+        [Repeat(1000)]
         public void SimpleInterface_Singleton()
         {
             ServiceRepository repo = new ServiceRepository();
@@ -120,24 +122,28 @@ namespace Iridium.Depend.Test
         }
 
         [Test]
+        [Repeat(1000)]
         public void SimpleInterface_WithDependency()
         {
             ServiceRepository repo = new ServiceRepository();
 
             repo.Register(typeof(GenericServiceWithParam<>));
 
-            Assert.IsNull(repo.Get<IGenericService2<int>>());
-            Assert.IsNull(repo.Get<IGenericService2<IGenericService1<int>>>());
+            var s1 = repo.Get<IGenericService2<IGenericService1<int>>>();
+
+            Assert.That(s1, Is.InstanceOf<GenericServiceWithParam<IGenericService1<int>>>());
+            Assert.That(((GenericServiceWithParam<IGenericService1<int>>)s1).Svc1, Is.Null);
 
             repo.Register(typeof(GenericService1<>));
 
-            var s1 = repo.Get<IGenericService2<IGenericService1<int>>>();
+            s1 = repo.Get<IGenericService2<IGenericService1<int>>>();
 
             Assert.That(s1, Is.InstanceOf<GenericServiceWithParam<IGenericService1<int>>>());
             Assert.That(((GenericServiceWithParam<IGenericService1<int>>)s1).Svc1, Is.InstanceOf<GenericService1<int>>());
         }
 
         [Test]
+        [Repeat(1000)]
         public void SimpleInstance()
         {
             ServiceRepository repo = new ServiceRepository();
@@ -155,6 +161,7 @@ namespace Iridium.Depend.Test
         }
 
         [Test]
+        [Repeat(1000)]
         public void MultiInstance1()
         {
             GenericService12A<int> svc12a = new GenericService12A<int>();
@@ -171,6 +178,7 @@ namespace Iridium.Depend.Test
 
 
         [Test]
+        [Repeat(1000)]
         public void MultiInterface()
         {
             ServiceRepository repo = new ServiceRepository();
@@ -184,6 +192,7 @@ namespace Iridium.Depend.Test
 
 
         [Test]
+        [Repeat(1000)]
         public void Create1()
         {
             ServiceRepository repo = new ServiceRepository();
@@ -199,6 +208,7 @@ namespace Iridium.Depend.Test
         }
 
         [Test]
+        [Repeat(1000)]
         public void Mixed()
         {
             ServiceRepository repo = new ServiceRepository();
@@ -211,6 +221,7 @@ namespace Iridium.Depend.Test
         }
 
         [Test]
+        [Repeat(1000)]
         public void SomethingThatFailsOnUWP()
         {
             var classType1 = typeof(SimpleClass1);

@@ -110,6 +110,24 @@ namespace Iridium.Depend.Test
         }
 
         [Test]
+        public void SimpleInterface_NonGeneric()
+        {
+            ServiceRepository repo = new ServiceRepository();
+
+            repo.Register<Service2A>();
+            repo.Register<Service1A>();
+
+            var s1 = repo.Get(typeof(IService1));
+            var s2 = repo.Get(typeof(IService1));
+            var s3 = repo.Get(typeof(IService3));
+
+            Assert.That(s1, Is.InstanceOf<Service1A>());
+            Assert.That(s2, Is.InstanceOf<Service1A>());
+            Assert.That(s1, Is.Not.SameAs(s2));
+            Assert.That(s3, Is.Null);
+        }
+
+        [Test]
         public void SimpleInterface_Singleton()
         {
             ServiceRepository repo = new ServiceRepository();
@@ -133,7 +151,8 @@ namespace Iridium.Depend.Test
 
             var s1 = repo.Get<IService2>();
 
-            Assert.That(s1, Is.Null);
+            Assert.That(s1, Is.InstanceOf<Service2A>());
+            Assert.That(((Service2A)s1).Svc1, Is.Null);
 
             Assert.That(repo.Register<Service1A>().RegisteredAsType, Is.EqualTo(typeof(Service1A)));
 
@@ -214,6 +233,22 @@ namespace Iridium.Depend.Test
         }
 
         [Test]
+        public void Create1_NonGeneric()
+        {
+            ServiceRepository repo = new ServiceRepository();
+
+            var svc1 = new Service1A();
+
+            repo.Register(svc1);
+
+            var svc3 = repo.Create(typeof(Service3));
+
+            Assert.That(svc3, Is.Not.Null);
+            Assert.That(svc3, Is.InstanceOf<Service3>());
+            Assert.That(((Service3)svc3).Svc1, Is.SameAs(svc1));
+        }
+
+        [Test]
         public void Create2()
         {
             ServiceRepository repo = new ServiceRepository();
@@ -253,10 +288,9 @@ namespace Iridium.Depend.Test
 
             var svc4 = repo.Create<Service4>();
 
-            Assert.That(svc4, Is.Null);
+            Assert.That(svc4, Is.Not.Null);
+            Assert.That(svc4.Svc2, Is.Null);
         }
-
-
 
         [Test]
         public void Create_Fail()
@@ -353,6 +387,28 @@ namespace Iridium.Depend.Test
             Assert.That(((Service2A)svc2a).Prop, Is.Null);
 
             svc2a = repo.Create<Service2A>("Hello");
+
+            Assert.That(svc2a, Is.InstanceOf<Service2A>());
+
+            Assert.That(((Service2A)svc2a).Prop, Is.EqualTo("Hello"));
+        }
+
+
+        [Test]
+        public void CreateObjectWithParam_NonGeneric()
+        {
+            ServiceRepository repo = new ServiceRepository();
+
+            repo.Register<Service2A>();
+            repo.Register<Service1A>();
+
+            var svc2a = repo.Get<IService2>();
+
+            Assert.That(svc2a, Is.InstanceOf<Service2A>());
+
+            Assert.That(((Service2A)svc2a).Prop, Is.Null);
+
+            svc2a = (Service2A) repo.Create(typeof(Service2A),"Hello");
 
             Assert.That(svc2a, Is.InstanceOf<Service2A>());
 

@@ -30,45 +30,21 @@ namespace Iridium.Depend
 {
     public static class ServiceLocator
     {
-        public static T Get<T>()
-        {
-            return ServiceRepository.Default.Get<T>();
-        }
+        public static T Get<T>() => ServiceRepository.Default.Get<T>();
+        public static object Get(Type type) => ServiceRepository.Default.Get(type);
 
-        public static object Get(Type type)
-        {
-            return ServiceRepository.Default.Get(type);
-        }
+        public static object Create(Type type) => ServiceRepository.Default.Create(type);
+        public static T Create<T>() where T:class => ServiceRepository.Default.Create<T>();
+        //public static object Create(Type type, params (Type t, object value)[] parameters) => ServiceRepository.Default.Create(type, parameters);
+        //public static T Create<T>(params object[] parameters) where T : class => ServiceRepository.Default.Create<T>(parameters);
 
-        public static T Create<T>() where T:class
-        {
-            return ServiceRepository.Default.Create<T>();
-        }
+        public static void UnRegister<T>() => ServiceRepository.Default.UnRegister<T>();
+        public static void UnRegister(Type type) => ServiceRepository.Default.UnRegister(type);
 
-        public static void UnRegister<T>()
-        {
-            ServiceRepository.Default.UnRegister<T>();
-        }
+        public static IServiceRegistrationResult Register<T>() => ServiceRepository.Default.Register<T>();
+        public static IServiceRegistrationResult Register(Type type) => ServiceRepository.Default.Register(type);
+        public static IServiceRegistrationResult Register<T>(T service) => ServiceRepository.Default.Register<T>(service);
 
-        public static void UnRegister(Type type)
-        {
-            ServiceRepository.Default.UnRegister(type);
-        }
-
-        public static IServiceRegistrationResult Register<T>()
-        {
-            return ServiceRepository.Default.Register<T>();
-        }
-
-        public static IServiceRegistrationResult Register(Type type)
-        {
-            return ServiceRepository.Default.Register(type);
-        }
-
-        public static IServiceRegistrationResult Register<T>(T service)
-        {
-            return ServiceRepository.Default.Register<T>(service);
-        }
-
+        public static void UpdateDependencies(object obj) => ServiceRepository.Default.UpdateDependencies(obj);
     }
 }

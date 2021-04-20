@@ -26,94 +26,52 @@
 
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Reflection;
-using Iridium.Reflection;
+//using System.Reflection;
+//using BindingFlags = System.Reflection.BindingFlags;
 
 namespace Iridium.Depend
 {
-    public class ServiceRepository
+    public interface IServiceRepository
+    {
+    }
+
+    public class ServiceRepository : IServiceRepository
     {
         public static ServiceRepository Default = new ServiceRepository();
 
-        private class ServiceDefinition
-        {
-            public ServiceDefinition(Type type)
-            {
-                RegistrationType = type;
-                Type = type;
-                Singleton = false;
-
-                IsUnboundGenericType = Type.GetTypeInfo().IsGenericTypeDefinition;
-
-                if (!IsUnboundGenericType)
-                {
-                    Constructors = (from c in Type.Inspector().GetConstructors()
-                                    let paramCount = c.GetParameters().Length
-                                    orderby paramCount descending
-                                    select c).ToArray();
-                }
-            }
-
-            public ServiceDefinition(Type registrationType, object obj)
-            {
-                RegistrationType = registrationType;
-                Type = obj.GetType();
-                Object = obj;
-                Singleton = true;
-            }
-
-            public readonly Type Type;
-            public Type RegistrationType;
-            public object Object;
-            public bool Singleton;
-            public readonly bool IsUnboundGenericType;
-            public readonly ConstructorInfo[] Constructors;
-
-            public bool IsMatch(Type type)
-            {
-                if (IsUnboundGenericType)
-                {
-                    if (type.GetTypeInfo().IsGenericTypeDefinition) // type is unbound as well
-                        return type == RegistrationType;
-
-                    if (!type.IsConstructedGenericType)
-                    {
-                        return false;
-                    }
-
-                    return type.GetGenericTypeDefinition().Inspector().IsAssignableFrom(Type);
-                }
-
-                return type.Inspector().IsAssignableFrom(RegistrationType);
-            }
-
-            public ConstructorInfo[] MatchingConstructors(Type type)
-            {
-                if (!IsUnboundGenericType)
-                    return Constructors;
-
-                if (!type.IsConstructedGenericType)
-                    return new ConstructorInfo[0];
-
-                return (from c in Type.MakeGenericType(type.GenericTypeArguments).Inspector().GetConstructors()
-                        let paramCount = c.GetParameters().Length
-                        orderby paramCount descending
-                        select c).ToArray();
-            }
-        }
-
         private readonly List<ServiceDefinition> _services = new List<ServiceDefinition>();
         private readonly ServiceRepository _parent;
+        private readonly Dictionary<Type, PropertyInfo[]> _injectProperties = new Dictionary<Type, PropertyInfo[]>();
 
-        public ServiceRepository() { }
+        public ServiceRepository()
+        {
+        }
+
         public ServiceRepository(ServiceRepository parent) => _parent = parent;
 
         public ServiceRepository CreateChild() => new ServiceRepository(this);
 
         public T Get<T>()
         {
-            return (T)Get(typeof(T));
+            return (T) _Get(typeof(T));
+        }
+
+        public T Get<T>(params object[] parameters)
+        {
+            return (T) _Get(typeof(T), parameters.Select(p => new ValueWithType(p)).ToArray());
+        }
+
+        public T Get<T, TParam1>(TParam1 param)
+        {
+            return (T) _Get(typeof(T), new ValueWithType[] {new ValueWithType<TParam1>(param)});
+        }
+
+        public T Get<T, TParam1, TParam2>(TParam1 param1, TParam2 param2)
+        {
+            return (T)_Get(typeof(T), new ValueWithType[] { new ValueWithType<TParam1>(param1), new ValueWithType<TParam2>(param2) });
         }
 
         private bool CanResolve(Type type)
@@ -128,11 +86,80 @@ namespace Iridium.Depend
                 if (_parent == null)
                     return _services;
 
-                return  _parent.Services.Union(_services);
+                return _parent.Services.Union(_services);
             }
         }
 
-        public object Get(Type type)
+        private object CallBestConstructor(ConstructorInfo[] constructors, ValueWithType[] parameters)
+        {
+            parameters ??= new ValueWithType[0];
+
+            List<(ConstructorInfo constructor, ParameterInfo[] constructorParameters, int resolveCount, ValueWithType[] parameterValues)> candidates = new List<(ConstructorInfo constructor, ParameterInfo[] constructorParameters, int resolveCount, ValueWithType[] parameterValues)>();
+
+            foreach (var constructor in constructors)
+            {
+                var constructorParameters = constructor.GetParameters();
+                int constructorParameterCount = constructorParameters.Length;
+
+                if (constructorParameterCount < parameters.Length)
+                    continue;
+
+                var constructorParameterValues = new ValueWithType[constructorParameterCount];
+                int resolvedParametersCount = 0;
+
+                if (parameters.Length > 0)
+                {
+                    for (int i = 0; i < constructorParameters.Length; i++)
+                    {
+                        foreach (var parameter in parameters)
+                        {
+                            if (parameter.Type.IsAssignableTo(constructorParameters[i].ParameterType))
+                            {
+                                constructorParameterValues[i] = parameter;
+                                resolvedParametersCount++;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (resolvedParametersCount < parameters.Length)
+                        continue;
+                }
+
+                int resolveCount = resolvedParametersCount + constructorParameters.Where((t, i) => constructorParameterValues[i] == null).Count(t => CanResolve(t.ParameterType));
+
+                var candidate = (constructor, constructorParameters, resolveCount, constructorParameterValues);
+
+                if (resolveCount == constructorParameterCount)
+                {
+                    // we have a perfect candidate
+                    candidates.Clear();
+                    candidates.Add(candidate);
+                    break; 
+                }
+                else
+                {
+                    candidates.Add(candidate);
+                }
+            }
+
+            if (candidates.Count == 0)
+                return null;
+
+            var bestCandidate = candidates[0];
+
+            if (candidates.Count > 1)
+                bestCandidate = candidates.OrderBy(c => c.constructorParameters.Length - c.resolveCount).ThenByDescending(c => c.constructorParameters.Length).First();
+
+            for (int i= 0; i < bestCandidate.constructorParameters.Length; i++)
+            {
+                bestCandidate.parameterValues[i] ??= new ValueWithType(_Get(bestCandidate.constructorParameters[i].ParameterType));
+            }
+
+            return bestCandidate.constructor.Invoke(bestCandidate.parameterValues.Select(p => p.Value).ToArray());
+        }
+
+        private object _Get(Type type, ValueWithType[] parameters = null)
         {
             foreach (var service in Services.Where(svc => svc.IsMatch(type)))
             {
@@ -141,11 +168,11 @@ namespace Iridium.Depend
                 if (obj != null)
                     return obj;
 
-                var constructor = service.MatchingConstructors(type).FirstOrDefault(c => c.GetParameters().All(p => CanResolve(p.ParameterType)));
+                obj = CallBestConstructor(service.MatchingConstructors(type), parameters);
 
-                if (constructor != null)
+                if (obj != null)
                 {
-                    obj = constructor.Invoke(constructor.GetParameters().Select(p => Get(p.ParameterType)).ToArray());
+                    SetInjectProperties(obj);
 
                     if (service.Singleton)
                         service.Object = obj;
@@ -157,49 +184,77 @@ namespace Iridium.Depend
             return null;
         }
 
-        public object Create(Type type)
+        public object Get(Type type, params object[] parameters)
         {
-            var constructor = new ServiceDefinition(type).Constructors.FirstOrDefault(c => c.GetParameters().All(p => CanResolve(p.ParameterType)));
-
-            if (constructor == null)
-                return null;
-
-            return constructor.Invoke(constructor.GetParameters().Select(p => Get(p.ParameterType)).ToArray());
+            return _Get(type, parameters.Select(p => new ValueWithType(p)).ToArray());
         }
 
-        public object Create(Type type, params (Type t, object value)[] parameters)
+        private object _Create(Type type, ValueWithType[] parameters = null)
         {
-            var childRepo = CreateChild();
+            var obj = CallBestConstructor(new ServiceDefinition(type).Constructors, parameters);
 
-            foreach (var (t, value) in parameters)
-            {
-                childRepo.Register(t, value);
-            }
+            if (obj == null)
+                return null;
 
-            return childRepo.Create(type);
+            SetInjectProperties(obj);
+
+            return obj;
+        }
+
+        public object Create(Type type)
+        {
+            return _Create(type);
+        }
+
+        public object Create(Type type, params object[] parameters)
+        {
+            return _Create(type, parameters.Select(p => new ValueWithType(p)).ToArray());
         }
 
         public T Create<T>() where T : class
         {
-            return (T)Create(typeof(T));
+            return (T)_Create(typeof(T));
         }
 
         public T Create<T>(params object[] parameters) where T : class
         {
-            if (parameters.Any(p => p == null))
-                throw new ArgumentException("Parameter for Create<> without type can't be null");
-
-            return (T)Create(typeof(T), parameters.Select(p => (p.GetType(), p)).ToArray());
+            return (T) _Create(typeof(T), parameters.Select(p => new ValueWithType(p)).ToArray());
         }
 
-        public T Create<T,TP1>(TP1 p1) where T : class
+        public T Create<T,TParam1>(TParam1 param) where T : class
         {
-            return (T)Create(typeof(T), (typeof(TP1),p1));
+            return (T)_Create(typeof(T), new ValueWithType[] {new ValueWithType<TParam1>(param)});
         }
 
-        public T Create<T, TP1, TP2>(TP1 p1, TP2 p2) where T : class
+        public T Create<T, TParam1, TParam2>(TParam1 param1, TParam2 param2) where T : class
         {
-            return (T)Create(typeof(T), (typeof(TP1), p1), (typeof(TP2), p2));
+            return (T)_Create(typeof(T), new ValueWithType[] { new ValueWithType<TParam1>(param1), new ValueWithType<TParam2>(param2) });
+        }
+
+        public void UpdateDependencies(object o)
+        {
+            SetInjectProperties(o);
+        }
+
+        private void SetInjectProperties(object o)
+        {
+            if (o == null)
+                return;
+
+            var type = o.GetType();
+
+            if (!_injectProperties.TryGetValue(type, out var injectProperties))
+            {
+                injectProperties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance).Where(p => p.CanWrite && p.GetCustomAttribute<InjectAttribute>() != null).ToArray();
+
+                _injectProperties[type] = injectProperties;
+            }
+
+            foreach (var property in injectProperties)
+            {
+                if (CanResolve(property.PropertyType))
+                    property.SetValue(o, Get(property.PropertyType));
+            }
         }
 
         public void UnRegister<T>()
@@ -218,7 +273,7 @@ namespace Iridium.Depend
 
             _services.Add(serviceDefinition);
 
-            return new RegistrationResult(this, serviceDefinition);
+            return new ServiceRegistrationResult(this, serviceDefinition);
         }
 
         public IServiceRegistrationResult Register(Type type)
@@ -227,7 +282,7 @@ namespace Iridium.Depend
 
             _services.Add(serviceDefinition);
 
-            return new RegistrationResult(this, serviceDefinition);
+            return new ServiceRegistrationResult(this, serviceDefinition);
         }
 
         public IServiceRegistrationResult Register(Type type, object obj)
@@ -236,7 +291,7 @@ namespace Iridium.Depend
 
             _services.Add(serviceDefinition);
 
-            return new RegistrationResult(this, serviceDefinition);
+            return new ServiceRegistrationResult(this, serviceDefinition);
         }
 
         public IServiceRegistrationResult Register<T>(T service)
@@ -248,7 +303,7 @@ namespace Iridium.Depend
 
             _services.Add(serviceDefinition);
 
-            return new RegistrationResult(this, serviceDefinition);
+            return new ServiceRegistrationResult(this, serviceDefinition);
         }
 
         public Type[] RegisteredTypes()
@@ -256,59 +311,9 @@ namespace Iridium.Depend
             return _services.Select(svc => svc.RegistrationType).ToArray();
         }
 
-        private void RemoveConflicting(Type registrationType, ServiceDefinition svcDef)
+        internal void RemoveConflicting(Type registrationType, ServiceDefinition svcDef)
         {
             _services.RemoveAll(svc => !ReferenceEquals(svcDef, svc) && svc.IsMatch(registrationType));
-        }
-
-        private class RegistrationResult : IServiceRegistrationResult
-        {
-            private ServiceDefinition Svc { get; }
-            private ServiceRepository Repository { get; }
-
-            public RegistrationResult(ServiceRepository repo, ServiceDefinition svc)
-            {
-                Repository = repo;
-                Svc = svc;
-            }
-
-            public IServiceRegistrationResult As<T>()
-            {
-                return As(typeof(T));
-            }
-
-            public IServiceRegistrationResult As(Type type)
-            {
-                if (!Svc.IsUnboundGenericType && !type.GetTypeInfo().IsAssignableFrom(Svc.Type.GetTypeInfo()))
-                    throw new ArgumentException("Type is not compatible");
-
-                Svc.RegistrationType = type;
-
-                return this;
-            }
-
-            public IServiceRegistrationResult Singleton()
-            {
-                Svc.Singleton = true;
-
-                return this;
-            }
-
-            public IServiceRegistrationResult Replace<T>()
-            {
-                Repository.RemoveConflicting(typeof(T), Svc);
-
-                return this;
-            }
-
-            public IServiceRegistrationResult Replace(Type type)
-            {
-                Repository.RemoveConflicting(type, Svc);
-
-                return this;
-            }
-
-            public Type RegisteredAsType => Svc.RegistrationType;
         }
     }
 }
