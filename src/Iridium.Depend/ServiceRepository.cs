@@ -1,8 +1,8 @@
 ﻿#region License
 //=============================================================================
-// Iridium-Core - Portable .NET Productivity Library 
+// Iridium-Depend - Portable .NET Productivity Library 
 //
-// Copyright (c) 2008-2017 Philippe Leybaert
+// Copyright (c) 2008-2021 Philippe Leybaert
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy 
 // of this software and associated documentation files (the "Software"), to deal 
@@ -26,18 +26,11 @@
 
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Linq;
 using System.Reflection;
-//using System.Reflection;
-//using BindingFlags = System.Reflection.BindingFlags;
 
 namespace Iridium.Depend
 {
-    public interface IServiceRepository
-    {
-    }
-
     public class ServiceRepository : IServiceRepository
     {
         public static ServiceRepository Default = new ServiceRepository();
@@ -52,7 +45,7 @@ namespace Iridium.Depend
 
         public ServiceRepository(ServiceRepository parent) => _parent = parent;
 
-        public ServiceRepository CreateChild() => new ServiceRepository(this);
+        public IServiceRepository CreateChild() => new ServiceRepository(this);
 
         public T Get<T>()
         {
@@ -61,20 +54,20 @@ namespace Iridium.Depend
 
         public T Get<T>(params object[] parameters)
         {
-            return (T) _Get(typeof(T), parameters.Select(p => new ValueWithType(p)).ToArray());
+            return (T) _Get(typeof(T), ConstructorParameter.GenerateConstructorParameters(parameters).ToArray());
         }
 
         public T Get<T, TParam1>(TParam1 param)
         {
-            return (T) _Get(typeof(T), new ValueWithType[] {new ValueWithType<TParam1>(param)});
+            return (T) _Get(typeof(T), new ConstructorParameter[] {new ConstructorParameter<TParam1>(param)});
         }
 
         public T Get<T, TParam1, TParam2>(TParam1 param1, TParam2 param2)
         {
-            return (T)_Get(typeof(T), new ValueWithType[] { new ValueWithType<TParam1>(param1), new ValueWithType<TParam2>(param2) });
+            return (T)_Get(typeof(T), new ConstructorParameter[] { new ConstructorParameter<TParam1>(param1), new ConstructorParameter<TParam2>(param2) });
         }
 
-        private bool CanResolve(Type type)
+        internal bool CanResolve(Type type)
         {
             return Services.Any(service => service.IsMatch(type));
         }
@@ -90,76 +83,22 @@ namespace Iridium.Depend
             }
         }
 
-        private object CallBestConstructor(ConstructorInfo[] constructors, ValueWithType[] parameters)
+        private object CallBestConstructor(ConstructorInfo[] constructors, ConstructorParameter[] parameters)
         {
-            parameters ??= new ValueWithType[0];
+            parameters ??= new ConstructorParameter[0];
 
-            List<(ConstructorInfo constructor, ParameterInfo[] constructorParameters, int resolveCount, ValueWithType[] parameterValues)> candidates = new List<(ConstructorInfo constructor, ParameterInfo[] constructorParameters, int resolveCount, ValueWithType[] parameterValues)>();
+            var candidates = constructors
+                .Select(constructor => new ConstructorCandidate(this, constructor, parameters))
+                .Where(candidate => candidate.MatchScore >= 0)
+                .OrderByDescending(c => c.MatchScore)
+                .ToList();
 
-            foreach (var constructor in constructors)
-            {
-                var constructorParameters = constructor.GetParameters();
-                int constructorParameterCount = constructorParameters.Length;
+            var bestCandidate = candidates.FirstOrDefault();
 
-                if (constructorParameterCount < parameters.Length)
-                    continue;
-
-                var constructorParameterValues = new ValueWithType[constructorParameterCount];
-                int resolvedParametersCount = 0;
-
-                if (parameters.Length > 0)
-                {
-                    for (int i = 0; i < constructorParameters.Length; i++)
-                    {
-                        foreach (var parameter in parameters)
-                        {
-                            if (parameter.Type.IsAssignableTo(constructorParameters[i].ParameterType))
-                            {
-                                constructorParameterValues[i] = parameter;
-                                resolvedParametersCount++;
-                                break;
-                            }
-                        }
-                    }
-
-                    if (resolvedParametersCount < parameters.Length)
-                        continue;
-                }
-
-                int resolveCount = resolvedParametersCount + constructorParameters.Where((t, i) => constructorParameterValues[i] == null).Count(t => CanResolve(t.ParameterType));
-
-                var candidate = (constructor, constructorParameters, resolveCount, constructorParameterValues);
-
-                if (resolveCount == constructorParameterCount)
-                {
-                    // we have a perfect candidate
-                    candidates.Clear();
-                    candidates.Add(candidate);
-                    break; 
-                }
-                else
-                {
-                    candidates.Add(candidate);
-                }
-            }
-
-            if (candidates.Count == 0)
-                return null;
-
-            var bestCandidate = candidates[0];
-
-            if (candidates.Count > 1)
-                bestCandidate = candidates.OrderBy(c => c.constructorParameters.Length - c.resolveCount).ThenByDescending(c => c.constructorParameters.Length).First();
-
-            for (int i= 0; i < bestCandidate.constructorParameters.Length; i++)
-            {
-                bestCandidate.parameterValues[i] ??= new ValueWithType(_Get(bestCandidate.constructorParameters[i].ParameterType));
-            }
-
-            return bestCandidate.constructor.Invoke(bestCandidate.parameterValues.Select(p => p.Value).ToArray());
+            return bestCandidate?.Invoke();
         }
 
-        private object _Get(Type type, ValueWithType[] parameters = null)
+        private object _Get(Type type, ConstructorParameter[] parameters = null)
         {
             foreach (var service in Services.Where(svc => svc.IsMatch(type)))
             {
@@ -186,10 +125,10 @@ namespace Iridium.Depend
 
         public object Get(Type type, params object[] parameters)
         {
-            return _Get(type, parameters.Select(p => new ValueWithType(p)).ToArray());
+            return _Get(type, parameters.Select(p => new ConstructorParameter(p)).ToArray());
         }
 
-        private object _Create(Type type, ValueWithType[] parameters = null)
+        private object _Create(Type type, ConstructorParameter[] parameters = null)
         {
             var obj = CallBestConstructor(new ServiceDefinition(type).Constructors, parameters);
 
@@ -208,7 +147,7 @@ namespace Iridium.Depend
 
         public object Create(Type type, params object[] parameters)
         {
-            return _Create(type, parameters.Select(p => new ValueWithType(p)).ToArray());
+            return _Create(type, ConstructorParameter.GenerateConstructorParameters(parameters).ToArray());
         }
 
         public T Create<T>() where T : class
@@ -218,17 +157,17 @@ namespace Iridium.Depend
 
         public T Create<T>(params object[] parameters) where T : class
         {
-            return (T) _Create(typeof(T), parameters.Select(p => new ValueWithType(p)).ToArray());
+            return (T) Create(typeof(T), parameters);
         }
 
         public T Create<T,TParam1>(TParam1 param) where T : class
         {
-            return (T)_Create(typeof(T), new ValueWithType[] {new ValueWithType<TParam1>(param)});
+            return (T)_Create(typeof(T), new ConstructorParameter[] {new ConstructorParameter<TParam1>(param)});
         }
 
         public T Create<T, TParam1, TParam2>(TParam1 param1, TParam2 param2) where T : class
         {
-            return (T)_Create(typeof(T), new ValueWithType[] { new ValueWithType<TParam1>(param1), new ValueWithType<TParam2>(param2) });
+            return (T)_Create(typeof(T), new ConstructorParameter[] { new ConstructorParameter<TParam1>(param1), new ConstructorParameter<TParam2>(param2) });
         }
 
         public void UpdateDependencies(object o)

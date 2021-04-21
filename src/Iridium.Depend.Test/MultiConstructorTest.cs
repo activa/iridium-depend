@@ -27,6 +27,9 @@ namespace Iridium.Depend.Test
         private class ServiceA
         {
             public string Prop { get; }
+            public int X { get; }
+            public int Y { get; }
+
             public string ConstructorCalled { get; }
             public IService1 Svc1 { get; }
             public IService2 Svc2 { get; }
@@ -39,6 +42,7 @@ namespace Iridium.Depend.Test
             public ServiceA(int x)
             {
                 ConstructorCalled = "(int)";
+                X = x;
             }
 
             public ServiceA(string prop)
@@ -85,6 +89,7 @@ namespace Iridium.Depend.Test
                 ConstructorCalled = "(IService1,IService2,int)";
                 Svc1 = svc1;
                 Svc2 = svc2;
+                X = x;
             }
 
             public ServiceA(IService1 svc1, IService2 svc2, string prop)
@@ -101,6 +106,14 @@ namespace Iridium.Depend.Test
                 Svc1 = svc1;
                 Svc2 = svc2;
                 Prop = prop;
+                X = x;
+            }
+
+            public ServiceA(int x, int y)
+            {
+                ConstructorCalled = "(int,int)";
+                X = x;
+                Y = y;
             }
 
         }
@@ -222,6 +235,34 @@ namespace Iridium.Depend.Test
             Assert.That(svc.Svc1, Is.Not.Null);
             Assert.That(svc.Svc2, Is.Not.Null);
             Assert.That(svc.Prop, Is.EqualTo("X"));
+        }
+
+        [Test]
+        public void TestNamedParameters1()
+        {
+            var repo = new ServiceRepository();
+
+            var svc = repo.Create<ServiceA>(new {x = 5});
+
+            Assert.That(svc, Is.Not.Null);
+            Assert.That(svc.ConstructorCalled, Is.EqualTo("(int)"));
+            Assert.That(svc.X, Is.EqualTo(5));
+
+            repo.Register(new Service1());
+            repo.Register(new Service2());
+
+            svc = repo.Create<ServiceA>(new { x = 5 });
+
+            Assert.That(svc, Is.Not.Null);
+            Assert.That(svc.ConstructorCalled, Is.EqualTo("(IService1,IService2,int)"));
+            Assert.That(svc.X, Is.EqualTo(5));
+
+            svc = repo.Create<ServiceA>(new { x = 5, y = 6 });
+
+            Assert.That(svc, Is.Not.Null);
+            Assert.That(svc.ConstructorCalled, Is.EqualTo("(int,int)"));
+            Assert.That(svc.X, Is.EqualTo(5));
+            Assert.That(svc.Y, Is.EqualTo(6));
         }
 
     }

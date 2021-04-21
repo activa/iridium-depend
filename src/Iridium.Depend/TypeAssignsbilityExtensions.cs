@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 
 namespace Iridium.Depend
 {
@@ -35,5 +36,32 @@ namespace Iridium.Depend
 
             return IsAssignableToGenericType(baseType, genericType);
         }
+
+            public static bool IsAnonymousType(this object source)
+            {
+                if (source == null)
+                    return false;
+
+                var type = source.GetType();
+
+                return type.IsGenericType
+                       && (type.Name.StartsWith("<>", StringComparison.OrdinalIgnoreCase) || type.Name.StartsWith("VB$", StringComparison.OrdinalIgnoreCase))
+                       && (type.Name.Contains("AnonymousType") || type.Name.Contains("AnonType"))
+                       && type.GetCustomAttributes<CompilerGeneratedAttribute>().Any();
+            }
+
+            public static bool IsAnonymousType(this Type type)
+            {
+                if (type == null)
+                {
+                    return false;
+                }
+
+                return type.IsGenericType
+                       && (type.Name.StartsWith("<>", StringComparison.OrdinalIgnoreCase) || type.Name.StartsWith("VB$", StringComparison.OrdinalIgnoreCase))
+                       && (type.Name.Contains("AnonymousType") || type.Name.Contains("AnonType"))
+                       && type.GetCustomAttributes<CompilerGeneratedAttribute>().Any();
+            }
+        
     }
 }
