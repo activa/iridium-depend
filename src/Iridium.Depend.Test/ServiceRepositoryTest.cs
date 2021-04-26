@@ -21,6 +21,10 @@ namespace Iridium.Depend.Test
 
         private class Service1A : IService1
         {
+            public int ID;
+
+            public Service1A(){}
+            public Service1A(int id) => ID = id;
         }
 
         private class Service1B : IService1
@@ -31,6 +35,7 @@ namespace Iridium.Depend.Test
         {
             public IService1 Svc1;
             public string Prop;
+            public int X;
 
             public Service2A(IService1 service1)
             {
@@ -45,7 +50,7 @@ namespace Iridium.Depend.Test
 
             public Service2A(int x)
             {
-
+                X = x;
             }
         }
 
@@ -371,6 +376,31 @@ namespace Iridium.Depend.Test
             repo.Register<Service1A>().Replace(typeof(IService1));
         }
 
+        [Test]
+        public void RegisterFactory1()
+        {
+            ServiceRepository repo = new ServiceRepository();
+
+            repo.Register<IService1>(() => new Service1A(123));
+
+            var service1 = repo.Get<IService1>();
+
+            Assert.That(service1, Is.InstanceOf<Service1A>());
+            Assert.That(((Service1A)service1).ID, Is.EqualTo(123));
+        }
+
+        [Test]
+        public void RegisterFactory2()
+        {
+            ServiceRepository repo = new ServiceRepository();
+
+            repo.Register<IService1>(svc => svc.Create<Service1A>(123));
+
+            var service1 = repo.Get<IService1>();
+
+            Assert.That(service1, Is.InstanceOf<Service1A>());
+            Assert.That(((Service1A)service1).ID, Is.EqualTo(123));
+        }
 
         [Test]
         public void CreateObjectWithParam()
@@ -418,7 +448,7 @@ namespace Iridium.Depend.Test
         [Test]
         public void RegisterNull()
         {
-            Assert.Catch<ArgumentNullException>(() => new ServiceRepository().Register<IService1>(null));
+            Assert.Catch<ArgumentNullException>(() => new ServiceRepository().Register<IService1>((IService1)null));
         }
 
         [Test]

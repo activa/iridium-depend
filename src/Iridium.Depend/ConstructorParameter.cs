@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
 
 namespace Iridium.Depend
 {
@@ -9,6 +10,10 @@ namespace Iridium.Depend
         public string Name;
         public object Value;
         public Type Type;
+
+        protected ConstructorParameter()
+        {
+        }
 
         public ConstructorParameter(string name, object value, Type type)
         {
@@ -65,5 +70,4 @@ namespace Iridium.Depend
         {
         }
     }
-
 }

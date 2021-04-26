@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Reflection;
 
 namespace Iridium.Depend
@@ -68,7 +69,7 @@ namespace Iridium.Depend
                 }
             }
 
-            var resolveCount = resolvedParametersCount + _constructorParameters.Where((t, i) => _parameterValues[i] == null).Count(t => repo.CanResolve(t.ParameterType));
+            var resolveCount = resolvedParametersCount + _constructorParameters.Where((t, i) => _parameterValues[i] == null).Count(t => repo.CanResolve(t.ParameterType) || t.ParameterType.IsFactoryValue());
 
             if (resolveCount == numConstructorParameters)
                 MatchScore = int.MaxValue;
@@ -76,11 +77,24 @@ namespace Iridium.Depend
                 MatchScore = 100 * (100 + resolveCount - numConstructorParameters) + numConstructorParameters;
         }
 
+
         public object Invoke()
         {
             for (int i = 0; i < _constructorParameters.Length; i++)
             {
-                _parameterValues[i] ??= new ConstructorParameter(_repo.Get(_constructorParameters[i].ParameterType));
+                if (_parameterValues[i] != null)
+                    continue;
+
+                var parameterType = _constructorParameters[i].ParameterType;
+
+                if (parameterType.IsFactoryValue())
+                {
+                    _parameterValues[i] = new ConstructorParameter(parameterType.CreateFactoryValue(_repo));
+                }
+                else
+                {
+                    _parameterValues[i] = new ConstructorParameter(_repo.Get(parameterType));
+                }
             }
 
             return _constructor.Invoke(_parameterValues.Select(p => p.Value).ToArray());

@@ -107,7 +107,10 @@ namespace Iridium.Depend
                 if (obj != null)
                     return obj;
 
-                obj = CallBestConstructor(service.MatchingConstructors(type), parameters);
+                if (service.Factory != null)
+                    obj = service.Factory(this);
+                else
+                    obj = CallBestConstructor(service.MatchingConstructors(type), parameters);
 
                 if (obj != null)
                 {
@@ -192,7 +195,13 @@ namespace Iridium.Depend
             foreach (var property in injectProperties)
             {
                 if (CanResolve(property.PropertyType))
+                {
                     property.SetValue(o, Get(property.PropertyType));
+                }
+                else if (property.PropertyType.IsFactoryValue())
+                {
+                    property.SetValue(o, property.PropertyType.CreateFactoryValue(this));
+                }
             }
         }
 
@@ -239,6 +248,30 @@ namespace Iridium.Depend
                 throw new ArgumentNullException(nameof(service));
 
             var serviceDefinition = new ServiceDefinition(typeof(T), service);
+
+            _services.Add(serviceDefinition);
+
+            return new ServiceRegistrationResult(this, serviceDefinition);
+        }
+
+        public IServiceRegistrationResult Register<T>(Func<T> factoryMethod)
+        {
+            if (factoryMethod == null)
+                throw new ArgumentNullException(nameof(factoryMethod));
+
+            var serviceDefinition = new ServiceDefinition(typeof(T), repo => factoryMethod());
+
+            _services.Add(serviceDefinition);
+
+            return new ServiceRegistrationResult(this, serviceDefinition);
+        }
+
+        public IServiceRegistrationResult Register<T>(Func<IServiceRepository, T> factoryMethod)
+        {
+            if (factoryMethod == null)
+                throw new ArgumentNullException(nameof(factoryMethod));
+
+            var serviceDefinition = new ServiceDefinition(typeof(T), repo => factoryMethod(repo));
 
             _services.Add(serviceDefinition);
 

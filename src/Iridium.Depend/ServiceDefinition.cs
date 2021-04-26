@@ -32,12 +32,20 @@ namespace Iridium.Depend
             Singleton = true;
         }
 
+        public ServiceDefinition(Type registrationType, Func<IServiceRepository, object> factoryMethod)
+        {
+            RegistrationType = registrationType;
+            Type = registrationType;
+            Factory = factoryMethod;
+        }
+
         public readonly Type Type;
         public Type RegistrationType;
         public object Object;
         public bool Singleton;
         public readonly bool IsUnboundGenericType;
         public readonly ConstructorInfo[] Constructors;
+        public Func<IServiceRepository, object> Factory;
 
         public bool IsMatch(Type type)
         {
