@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using NUnit.Framework;
 
 namespace Iridium.Depend.Test
@@ -134,6 +135,36 @@ namespace Iridium.Depend.Test
 
             Assert.That(obj.Svc1, Is.SameAs(svc1));
             Assert.That(obj.Svc2, Is.SameAs(svc2));
+        }
+    }
+
+    [TestFixture]
+    public class ConcurrenyTests
+    {
+        private class Service1
+        {
+            public int X { get; }
+
+            public Service1(int x)
+            {
+                X = x;
+            }
+        }
+
+        [Test]
+        [Repeat(100)]
+        [Parallelizable]
+        public void Test1()
+        {
+            ServiceRepository repo = new ServiceRepository();
+
+            repo.Register<Service1>();
+
+            Parallel.For(0, 100, i =>
+            {
+                Assert.That(repo.Get<Service1>(i), Is.Not.Null);
+                Assert.That(repo.Get<Service1>(i).X, Is.EqualTo(i));
+            });
         }
     }
 }

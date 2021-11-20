@@ -37,6 +37,10 @@ namespace Iridium.Depend.Test
         {
             public T Svc1;
 
+            public GenericServiceWithParam()
+            {
+            }
+
             public GenericServiceWithParam(T service1)
             {
                 Svc1 = service1;
@@ -103,6 +107,46 @@ namespace Iridium.Depend.Test
 
         [Test]
         [Repeat(1000)]
+        public void SimpleInterface_Factory()
+        {
+            ServiceRepository repo = new ServiceRepository();
+
+            repo.Register(typeof(IGenericService1<>), t => Activator.CreateInstance(typeof(GenericService1<>).MakeGenericType(t.GenericTypeArguments[0])));
+
+            var s1 = repo.Get<IGenericService1<int>>();
+            var s2 = repo.Get<IGenericService1<int>>();
+
+            Assert.That(s1, Is.InstanceOf<GenericService1<int>>());
+            Assert.That(s2, Is.InstanceOf<GenericService1<int>>());
+            Assert.That(s1, Is.Not.SameAs(s2));
+
+            repo.UnRegister(typeof(IGenericService1<>));
+
+            Assert.Null(repo.Get<IGenericService1<int>>());
+        }
+
+        [Test]
+        [Repeat(1000)]
+        public void SimpleInterface_Factory2()
+        {
+            ServiceRepository repo = new ServiceRepository();
+
+            repo.Register(typeof(IGenericService1<>), (svcs,type) => svcs.Create(typeof(GenericService1<>).MakeGenericType(type.GenericTypeArguments[0])));
+
+            var s1 = repo.Get<IGenericService1<int>>();
+            var s2 = repo.Get<IGenericService1<int>>();
+
+            Assert.That(s1, Is.InstanceOf<GenericService1<int>>());
+            Assert.That(s2, Is.InstanceOf<GenericService1<int>>());
+            Assert.That(s1, Is.Not.SameAs(s2));
+
+            repo.UnRegister(typeof(IGenericService1<>));
+
+            Assert.Null(repo.Get<IGenericService1<int>>());
+        }
+
+        [Test]
+        [Repeat(1000)]
         public void SimpleInterface_Singleton()
         {
             ServiceRepository repo = new ServiceRepository();
@@ -128,6 +172,26 @@ namespace Iridium.Depend.Test
             ServiceRepository repo = new ServiceRepository();
 
             repo.Register(typeof(GenericServiceWithParam<>));
+
+            var s1 = repo.Get<IGenericService2<IGenericService1<int>>>();
+
+            Assert.That(s1, Is.InstanceOf<GenericServiceWithParam<IGenericService1<int>>>());
+            Assert.That(((GenericServiceWithParam<IGenericService1<int>>)s1).Svc1, Is.Null);
+
+            repo.Register(typeof(GenericService1<>));
+
+            s1 = repo.Get<IGenericService2<IGenericService1<int>>>();
+
+            Assert.That(s1, Is.InstanceOf<GenericServiceWithParam<IGenericService1<int>>>());
+            Assert.That(((GenericServiceWithParam<IGenericService1<int>>)s1).Svc1, Is.InstanceOf<GenericService1<int>>());
+        }
+
+        [Test]
+        public void SimpleInterface_Factory_WithDependency()
+        {
+            ServiceRepository repo = new ServiceRepository();
+
+            repo.Register(typeof(GenericServiceWithParam<>), (svcs,type) => svcs.Create(typeof(GenericServiceWithParam<>).MakeGenericType(type.GenericTypeArguments[0])));
 
             var s1 = repo.Get<IGenericService2<IGenericService1<int>>>();
 

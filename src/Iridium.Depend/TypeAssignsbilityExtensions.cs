@@ -37,31 +37,36 @@ namespace Iridium.Depend
             return IsAssignableToGenericType(baseType, genericType);
         }
 
-            public static bool IsAnonymousType(this object source)
-            {
-                if (source == null)
-                    return false;
+        public static bool IsAnonymousType(this object source)
+        {
+            if (source == null)
+                return false;
 
-                var type = source.GetType();
+            var type = source.GetType();
 
-                return type.IsGenericType
-                       && (type.Name.StartsWith("<>", StringComparison.OrdinalIgnoreCase) || type.Name.StartsWith("VB$", StringComparison.OrdinalIgnoreCase))
-                       && (type.Name.Contains("AnonymousType") || type.Name.Contains("AnonType"))
-                       && type.GetCustomAttributes<CompilerGeneratedAttribute>().Any();
-            }
+            return type.IsAnonymousType();
+            //
+            // return type.IsGenericType
+            //        && (type.Name.StartsWith("<>", StringComparison.OrdinalIgnoreCase) || type.Name.StartsWith("VB$", StringComparison.OrdinalIgnoreCase))
+            //        && (type.Name.Contains("AnonymousType") || type.Name.Contains("AnonType"))
+            //        && type.GetCustomAttributes<CompilerGeneratedAttribute>().Any();
+        }
 
-            public static bool IsAnonymousType(this Type type)
-            {
-                if (type == null)
-                {
-                    return false;
-                }
+        public static bool IsAnonymousType(this Type type)
+        {
+            if (type == null)
+                return false;
 
-                return type.IsGenericType
-                       && (type.Name.StartsWith("<>", StringComparison.OrdinalIgnoreCase) || type.Name.StartsWith("VB$", StringComparison.OrdinalIgnoreCase))
-                       && (type.Name.Contains("AnonymousType") || type.Name.Contains("AnonType"))
-                       && type.GetCustomAttributes<CompilerGeneratedAttribute>().Any();
-            }
-        
+            return type.IsGenericType
+                   && (type.Name.StartsWith("<>", StringComparison.OrdinalIgnoreCase) || type.Name.StartsWith("VB$", StringComparison.OrdinalIgnoreCase))
+                   && (type.Name.Contains("AnonymousType") || type.Name.Contains("AnonType"))
+                   && type.GetCustomAttributes<CompilerGeneratedAttribute>().Any();
+        }
+
+        public static bool CanBeNull(this Type type)
+        {
+            return (!type.IsValueType || Nullable.GetUnderlyingType(type) != null);
+        }
+
     }
 }

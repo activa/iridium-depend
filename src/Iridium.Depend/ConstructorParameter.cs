@@ -5,41 +5,49 @@ using System.Linq.Expressions;
 
 namespace Iridium.Depend
 {
-    public class ConstructorParameter
+    internal class ConstructorParameter
     {
         public string Name;
-        public object Value;
+        private readonly object _value;
         public Type Type;
+        private readonly Func<object> _factory;
 
         protected ConstructorParameter()
         {
         }
 
+        public ConstructorParameter(Func<object> factory)
+        {
+            _factory = factory;
+        }
+
         public ConstructorParameter(string name, object value, Type type)
         {
             Name = name;
-            Value = value;
+            _value = value;
             Type = type;
         }
 
         public ConstructorParameter(object value, Type type)
         {
-            Value = value;
+            _value = value;
             Type = type;
         }
 
         public ConstructorParameter(object value)
         {
-            Value = value;
-            Type = value?.GetType() ?? typeof(object);
+            _value = value;
+            Type = value?.GetType();
         }
 
         public ConstructorParameter(string name, object value)
         {
             Name = name;
-            Value = value;
-            Type = value?.GetType() ?? typeof(object);
+            _value = value;
+            Type = value?.GetType();
         }
+
+        public object Value => _factory != null ? _factory() : _value;
 
         internal static IEnumerable<ConstructorParameter> GenerateConstructorParameters(object[] parameters)
         {
@@ -60,7 +68,7 @@ namespace Iridium.Depend
         }
     }
 
-    public class ConstructorParameter<T> : ConstructorParameter
+    internal class ConstructorParameter<T> : ConstructorParameter
     {
         public ConstructorParameter(string name, T value) : base(name, value, typeof(T))
         {

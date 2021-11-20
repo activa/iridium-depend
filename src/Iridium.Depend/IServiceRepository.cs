@@ -6,7 +6,6 @@ namespace Iridium.Depend
 {
     public interface IServiceRepository
     {
-        IServiceRepository CreateChild();
         T Get<T>();
         T Get<T>(params object[] parameters);
         T Get<T, TParam1>(TParam1 param);
@@ -25,5 +24,7 @@ namespace Iridium.Depend
         IServiceRegistrationResult Register(Type type);
         IServiceRegistrationResult Register(Type type, object obj);
         IServiceRegistrationResult Register<T>(T service);
+        IServiceRegistrationResult Register<T>(Func<T> factoryMethod);
+        IServiceRegistrationResult Register<T>(Func<IServiceRepository, T> factoryMethod);
     }
 }

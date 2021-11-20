@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
@@ -8,7 +7,7 @@ namespace Iridium.Depend
 {
     internal class ConstructorCandidate
     {
-        private readonly ServiceRepository _repo;
+        // private readonly ServiceRepository _repo;
         private readonly ConstructorInfo _constructor;
         private readonly ParameterInfo[] _constructorParameters;
         private readonly ConstructorParameter[] _parameterValues;
@@ -17,7 +16,6 @@ namespace Iridium.Depend
 
         public ConstructorCandidate(ServiceRepository repo, ConstructorInfo constructor, ConstructorParameter[] parameters)
         {
-            _repo = repo;
             _constructor = constructor;
             _constructorParameters = _constructor.GetParameters();
 
@@ -29,35 +27,59 @@ namespace Iridium.Depend
                 return;
             }
 
+            int resolvedServicesCount = 0;
+            int resolvedParametersCount = 0;
+
             _parameterValues = new ConstructorParameter[numConstructorParameters];
 
-            int resolvedParametersCount = 0;
+            for (int i = 0; i < _parameterValues.Length; i++)
+            {
+                var parameterType = _constructorParameters[i].ParameterType;
+
+                if (repo.CanResolve(parameterType) || parameterType.IsFactoryValue())
+                {
+                   _parameterValues[i] = new ConstructorParameter(() => repo.Get(parameterType));
+                   resolvedServicesCount++;
+                }
+            }
 
             if (parameters.Length > 0)
             {
-                var typedParameters = parameters.Where(p => p.Name == null).ToList();
+                var typedParameters = parameters.Where(p => p.Name == null && p.Type != null).ToList();
+                var numNullParameters = parameters.Count(p => p.Name == null && p.Type == null);
                 var namedParameters = parameters.Where(p => p.Name != null).ToDictionary(p => p.Name, p => p);
 
                 for (int i = 0; i < numConstructorParameters; i++)
                 {
-                    if (namedParameters.TryGetValue(_constructorParameters[i].Name, out var namedParameter))
+                    if (_parameterValues[i] != null)
+                        continue;
+
+                    var constructorParameter = _constructorParameters[i];
+                    var constructorParameterType = constructorParameter.ParameterType;
+
+                    if (namedParameters.TryGetValue(constructorParameter.Name, out var namedParameter))
                     {
-                        if (!namedParameter.Type.IsAssignableTo(_constructorParameters[i].ParameterType))
-                            throw new Exception($"Parameter {namedParameter.Name} can't be assigned to type {_constructorParameters[i].ParameterType.Name}");
+                        if (!namedParameter.Type.IsAssignableTo(constructorParameterType))
+                            throw new Exception($"Parameter {namedParameter.Name} can't be assigned to type {constructorParameterType.Name}");
 
                         _parameterValues[i] = namedParameter;
                         resolvedParametersCount++;
                     }
                     else
                     {
-                        foreach (var parameter in typedParameters)
+                        foreach (var parameter in typedParameters.Where(p => p.Type.IsAssignableTo(constructorParameterType)))
                         {
-                            if (parameter.Type.IsAssignableTo(_constructorParameters[i].ParameterType))
-                            {
-                                _parameterValues[i] = parameter;
-                                resolvedParametersCount++;
-                                break;
-                            }
+                            _parameterValues[i] = parameter;
+                            resolvedParametersCount++;
+                            typedParameters.Remove(parameter);
+                            break;
+                        }
+
+                        if (_parameterValues[i] == null && numNullParameters > 0 && constructorParameterType.CanBeNull())
+                        {
+                            _parameterValues[i] = new ConstructorParameter(value:null);
+                            numNullParameters--;
+                            resolvedParametersCount++;
                         }
                     }
                 }
@@ -69,12 +91,9 @@ namespace Iridium.Depend
                 }
             }
 
-            var resolveCount = resolvedParametersCount + _constructorParameters.Where((t, i) => _parameterValues[i] == null).Count(t => repo.CanResolve(t.ParameterType) || t.ParameterType.IsFactoryValue());
+            var resolveCount = resolvedParametersCount + resolvedServicesCount;
 
-            if (resolveCount == numConstructorParameters)
-                MatchScore = int.MaxValue;
-            else
-                MatchScore = 100 * (100 + resolveCount - numConstructorParameters) + numConstructorParameters;
+            MatchScore = 100 * (100 + resolveCount - numConstructorParameters) + numConstructorParameters;
         }
 
 
@@ -85,16 +104,7 @@ namespace Iridium.Depend
                 if (_parameterValues[i] != null)
                     continue;
 
-                var parameterType = _constructorParameters[i].ParameterType;
-
-                if (parameterType.IsFactoryValue())
-                {
-                    _parameterValues[i] = new ConstructorParameter(parameterType.CreateFactoryValue(_repo));
-                }
-                else
-                {
-                    _parameterValues[i] = new ConstructorParameter(_repo.Get(parameterType));
-                }
+                _parameterValues[i] = new ConstructorParameter(value:null);
             }
 
             return _constructor.Invoke(_parameterValues.Select(p => p.Value).ToArray());
