@@ -25,8 +25,10 @@
 #endregion
 
 using System;
+using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
@@ -41,6 +43,18 @@ namespace Iridium.Depend
         private readonly ConcurrentDictionary<Type, PropertyInfo[]> _injectProperties = new ConcurrentDictionary<Type, PropertyInfo[]>();
         private readonly ConcurrentDictionary<Type, List<ServiceDefinition>> _cache = new ConcurrentDictionary<Type, List<ServiceDefinition>>();
         private readonly ConcurrentDictionary<Type, (Type type, Delegate factory)> _factoryTypeCache = new ConcurrentDictionary<Type, (Type type, Delegate factory)>();
+        private readonly ServiceResolveStrategy _resolveStrategy = ServiceResolveStrategy.First;
+
+        public ServiceRepository()
+        {
+        }
+
+        public ServiceRepository(ServiceResolveStrategy resolveStrategy)
+        {
+            _resolveStrategy = resolveStrategy;
+        }
+
+        public ServiceResolveStrategy ResolveStrategy => _resolveStrategy;
 
         public T Get<T>()
         {
@@ -60,6 +74,11 @@ namespace Iridium.Depend
         public T Get<T, TParam1, TParam2>(TParam1 param1, TParam2 param2)
         {
             return (T)_Get(typeof(T), new ConstructorParameter[] { new ConstructorParameter<TParam1>(param1), new ConstructorParameter<TParam2>(param2) });
+        }
+
+        public IEnumerable<T> GetAll<T>()
+        {
+            return _GetAll(typeof(T)).Cast<T>();
         }
 
         internal bool CanResolve(Type type) => GetMatchingServices(type).Count > 0;
@@ -93,27 +112,52 @@ namespace Iridium.Depend
                 return CreateFactoryValue(type);
             }
             
-            foreach (var service in GetMatchingServices(type))
+            foreach (var serviceDefinition in GetMatchingServices(type))
             {
-                object obj = service.Object;
+                var obj = _Get(type, serviceDefinition, parameters);
 
                 if (obj != null)
                     return obj;
+            }
 
-                if (service.Factory != null)
-                    obj = service.Factory(this, type);
-                else
-                    obj = CallBestConstructor(service.MatchingConstructors(type), parameters);
+            return null;
+        }
 
-                if (obj != null)
+        private IEnumerable<object> _GetAll(Type type)
+        {
+            if (type.IsFactoryValue())
+            {
+                return new[] { CreateFactoryValue(type) };
+            }
+
+            return GetMatchingServices(type).Select(svc => _Get(type, svc)).Where(o => o != null);
+        }
+
+        private object _Get(Type type, ServiceDefinition serviceDefinition, ConstructorParameter[] parameters = null)
+        {
+            var obj = serviceDefinition.GetSingletonObject(type);
+
+            if (obj != null)
+            {
+                SetInjectProperties(obj);
+                return obj;
+            }
+
+            if (serviceDefinition.Factory != null)
+                obj = serviceDefinition.Factory(this, type);
+            else
+                obj = CallBestConstructor(serviceDefinition.MatchingConstructors(type), parameters);
+
+            if (obj != null)
+            {
+                SetInjectProperties(obj);
+
+                if (serviceDefinition.Singleton)
                 {
-                    SetInjectProperties(obj);
-
-                    if (service.Singleton)
-                        service.Object = obj;
-
-                    return obj;
+                    serviceDefinition.SetSingletonObject(type, obj);
                 }
+
+                return obj;
             }
 
             return null;
@@ -196,7 +240,12 @@ namespace Iridium.Depend
         private ServiceDefinition AddService(ServiceDefinition service)
         {
             lock (_services)
-                _services.Add(service);
+            {
+                if (_resolveStrategy == ServiceResolveStrategy.First)
+                    _services.Add(service);
+                else
+                    _services.Insert(0,service);
+            }
 
             _cache.Clear();
 
@@ -214,6 +263,27 @@ namespace Iridium.Depend
                 _services.RemoveAll(svc => svc.IsMatch(type));
 
             _cache.Clear();
+        }
+
+        public void Refresh(bool disposePrevious = false)
+        {
+            foreach (var service in _services)
+            {
+                service.ClearStoredSingleton(disposePrevious);
+            }
+        }
+
+        public void Refresh<T>(bool disposePrevious = false)
+        {
+            Refresh(typeof(T), disposePrevious);
+        }
+
+        public void Refresh(Type type, bool disposePrevious = false)
+        {
+            foreach (var serviceDefinition in GetMatchingServices(type))
+            {
+                serviceDefinition.ClearStoredSingleton(disposePrevious);
+            }
         }
 
         public IServiceRegistrationResult Register<T>()

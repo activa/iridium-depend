@@ -1004,6 +1004,20 @@ namespace Iridium.Depend.Test
             Assert.That(svc.ConstructorCalled, Is.EqualTo("(int,int,IService1,IService2)"));
             Assert.That(svc.X, Is.EqualTo(5));
             Assert.That(svc.Y, Is.EqualTo(6));
+
+            // Check if passing a named parameter that also resolves as a service will be used instead of the service
+
+            repo = new ServiceRepository();
+            repo.Register(new Service1());
+            repo.Register(new Service2());
+
+            var svc2 = new Service2();
+
+            svc = repo.Create<ServiceA>(new { service2 = svc2, x = 5 });
+
+            Assert.That(svc, Is.Not.Null);
+            Assert.That(svc.ConstructorCalled, Is.EqualTo("(int,IService1,IService2)"));
+            Assert.That(svc.Svc2, Is.SameAs(svc2));
         }
 
         [Test]

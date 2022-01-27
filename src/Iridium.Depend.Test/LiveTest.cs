@@ -116,6 +116,34 @@ namespace Iridium.Depend.Test
         }
 
         [Test]
+        public void TestLiveSingleton()
+        {
+            var svc1 = new Service1();
+            // var svc2a = new Service2();
+            // var svc2b = new Service2();
+
+            ServiceRepository repo = new ServiceRepository();
+
+            repo.Register(svc1);
+            repo.Register<Service2>().As<IService2>().Singleton();
+
+            var obj = repo.Create<TargetService>();
+
+            Assert.That(obj.Svc1, Is.SameAs(svc1));
+            Assert.That(obj.Svc2, Is.InstanceOf<Service2>());
+
+            var svc2a = obj.Svc2;
+            var svc2b = obj.Svc2;
+
+            Assert.That(svc2a, Is.SameAs(svc2b));
+
+            repo.Register<Service2>().Replace<IService2>();
+
+            Assert.That(obj.Svc2, Is.Not.SameAs(svc2a));
+        }
+
+
+        [Test]
         public void TestNothingWithProperties()
         {
             ServiceRepository repo = new ServiceRepository();

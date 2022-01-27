@@ -32,8 +32,35 @@ namespace Iridium.Depend
 
             _parameterValues = new ConstructorParameter[numConstructorParameters];
 
-            for (int i = 0; i < _parameterValues.Length; i++)
+            if (parameters.Length > 0)
             {
+                var namedParameters = parameters.Where(p => p.Name != null).ToDictionary(p => p.Name, p => p);
+
+                if (namedParameters.Count > 0)
+                {
+                    for (int i = 0; i < numConstructorParameters; i++)
+                    {
+                        var constructorParameter = _constructorParameters[i];
+                        var constructorParameterType = constructorParameter.ParameterType;
+
+                        if (namedParameters.TryGetValue(constructorParameter.Name, out var namedParameter))
+                        {
+                            if (!namedParameter.Type.IsAssignableTo(constructorParameterType))
+                                throw new Exception($"Parameter {namedParameter.Name} can't be assigned to type {constructorParameterType.Name}");
+
+                            _parameterValues[i] = namedParameter;
+
+                            resolvedParametersCount++;
+                        }
+                    }
+                }
+            }
+
+            for (int i = 0; i < numConstructorParameters; i++)
+            {
+                if (_parameterValues[i] != null)
+                    continue;
+
                 var parameterType = _constructorParameters[i].ParameterType;
 
                 if (repo.CanResolve(parameterType) || parameterType.IsFactoryValue())
@@ -47,7 +74,6 @@ namespace Iridium.Depend
             {
                 var typedParameters = parameters.Where(p => p.Name == null && p.Type != null).ToList();
                 var numNullParameters = parameters.Count(p => p.Name == null && p.Type == null);
-                var namedParameters = parameters.Where(p => p.Name != null).ToDictionary(p => p.Name, p => p);
 
                 for (int i = 0; i < numConstructorParameters; i++)
                 {
@@ -57,30 +83,19 @@ namespace Iridium.Depend
                     var constructorParameter = _constructorParameters[i];
                     var constructorParameterType = constructorParameter.ParameterType;
 
-                    if (namedParameters.TryGetValue(constructorParameter.Name, out var namedParameter))
+                    foreach (var parameter in typedParameters.Where(p => p.Type.IsAssignableTo(constructorParameterType)))
                     {
-                        if (!namedParameter.Type.IsAssignableTo(constructorParameterType))
-                            throw new Exception($"Parameter {namedParameter.Name} can't be assigned to type {constructorParameterType.Name}");
-
-                        _parameterValues[i] = namedParameter;
+                        _parameterValues[i] = parameter;
                         resolvedParametersCount++;
+                        typedParameters.Remove(parameter);
+                        break;
                     }
-                    else
-                    {
-                        foreach (var parameter in typedParameters.Where(p => p.Type.IsAssignableTo(constructorParameterType)))
-                        {
-                            _parameterValues[i] = parameter;
-                            resolvedParametersCount++;
-                            typedParameters.Remove(parameter);
-                            break;
-                        }
 
-                        if (_parameterValues[i] == null && numNullParameters > 0 && constructorParameterType.CanBeNull())
-                        {
-                            _parameterValues[i] = new ConstructorParameter(value:null);
-                            numNullParameters--;
-                            resolvedParametersCount++;
-                        }
+                    if (_parameterValues[i] == null && numNullParameters > 0 && constructorParameterType.CanBeNull())
+                    {
+                        _parameterValues[i] = new ConstructorParameter(value:null);
+                        numNullParameters--;
+                        resolvedParametersCount++;
                     }
                 }
 

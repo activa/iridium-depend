@@ -167,6 +167,31 @@ namespace Iridium.Depend.Test
 
         [Test]
         [Repeat(1000)]
+        public void SimpleInterface_Singleton_MultiType()
+        {
+            ServiceRepository repo = new ServiceRepository();
+
+            repo.Register(typeof(GenericService1<>)).Singleton();
+
+            var s1 = repo.Get<IGenericService1<int>>();
+            var s2 = repo.Get<IGenericService1<string>>();
+            var s1a = repo.Get<IGenericService1<int>>();
+            var s2a = repo.Get<IGenericService1<string>>();
+
+            Assert.That(s1, Is.InstanceOf<GenericService1<int>>());
+            Assert.That(s2, Is.InstanceOf<GenericService1<string>>());
+            Assert.That(s1a, Is.InstanceOf<GenericService1<int>>());
+            Assert.That(s2a, Is.InstanceOf<GenericService1<string>>());
+            Assert.That(s1, Is.SameAs(s1a));
+            Assert.That(s2, Is.SameAs(s2a));
+
+            repo.UnRegister(typeof(GenericService1<>));
+
+            Assert.Null(repo.Get<IGenericService1<int>>());
+        }
+
+        [Test]
+        [Repeat(1000)]
         public void SimpleInterface_WithDependency()
         {
             ServiceRepository repo = new ServiceRepository();

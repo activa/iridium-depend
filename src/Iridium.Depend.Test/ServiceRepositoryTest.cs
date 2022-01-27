@@ -1,4 +1,5 @@
 using System;
+using System.Net.Cache;
 using NUnit.Framework;
 
 namespace Iridium.Depend.Test
@@ -87,11 +88,11 @@ namespace Iridium.Depend.Test
         {
         }
 
-        public interface IGenericServica1<T>
+        public interface IGenericService1<T>
         {
         }
 
-        public class GenericService1<T> : IGenericServica1<T>
+        public class GenericService1<T> : IGenericService1<T>
         {
         }
 
@@ -145,6 +146,29 @@ namespace Iridium.Depend.Test
             Assert.That(s1, Is.InstanceOf<Service1A>());
             Assert.That(s2, Is.InstanceOf<Service1A>());
             Assert.That(s1, Is.SameAs(s2));
+        }
+
+        [Test]
+        public void SimpleInterface_Singleton_Reset()
+        {
+            ServiceRepository repo = new ServiceRepository();
+
+            repo.Register<Service1A>().Singleton();
+
+            var s1 = repo.Get<IService1>();
+            var s2 = repo.Get<IService1>();
+
+            Assert.That(s1, Is.InstanceOf<Service1A>());
+            Assert.That(s2, Is.InstanceOf<Service1A>());
+            Assert.That(s1, Is.SameAs(s2));
+
+            repo.Refresh<IService1>();
+
+            var s3 = repo.Get<IService1>();
+
+            Assert.That(s3, Is.InstanceOf<Service1A>());
+            Assert.That(s3, Is.Not.SameAs(s1));
+            Assert.That(s3, Is.Not.SameAs(s2));
         }
 
         [Test]
