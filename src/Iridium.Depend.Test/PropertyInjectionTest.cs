@@ -30,23 +30,31 @@ namespace Iridium.Depend.Test
             ServiceRepository repo = new ServiceRepository();
 
             var svc1 = new Service1();
-            repo.Register(svc1);
             var svc2 = new Service2();
+
+            repo.Register(svc1);
             repo.Register(svc2);
 
-            var svc3 = repo.Create<Service3>();
+            var serviceProvider = repo.CreateServiceProvider(true);
+
+            var svc3 = serviceProvider.Create<Service3>();
 
             Assert.That(svc3.Svc1, Is.Null);
             Assert.That(svc3.Svc2, Is.SameAs(svc2));
             
-            svc3 = repo.Create<Service3>();
+            svc3 = serviceProvider.Create<Service3>();
 
             Assert.That(svc3.Svc1, Is.Null);
             Assert.That(svc3.Svc2, Is.SameAs(svc2));
 
-            repo.UnRegister<Service2>();
+            serviceProvider = repo.CreateServiceProvider(false);
 
-            svc3 = repo.Create<Service3>();
+            svc3 = serviceProvider.Create<Service3>();
+
+            Assert.That(svc3.Svc1, Is.Null);
+            Assert.That(svc3.Svc2, Is.Null);
+
+            svc3 = serviceProvider.Create<Service3>();
 
             Assert.That(svc3.Svc1, Is.Null);
             Assert.That(svc3.Svc2, Is.Null);

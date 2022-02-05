@@ -55,7 +55,7 @@ namespace Iridium.Depend.Test
         {
             ServiceRepository repo = new ServiceRepository();
 
-            var obj = repo.Create<TargetService>();
+            var obj = repo.CreateServiceProvider().Create<TargetService>();
 
             Assert.That(obj.Svc1, Is.Null);
             Assert.That(obj.Svc2, Is.Null);
@@ -70,7 +70,9 @@ namespace Iridium.Depend.Test
 
             repo.Register(svc1);
 
-            var obj = repo.Create<TargetService>();
+            var serviceProvider = repo.CreateServiceProvider();
+
+            var obj = serviceProvider.Create<TargetService>();
 
             Assert.That(obj.Svc1, Is.SameAs(svc1));
             Assert.That(obj.Svc2, Is.Null);
@@ -87,7 +89,9 @@ namespace Iridium.Depend.Test
             repo.Register(svc1);
             repo.Register(svc2);
 
-            var obj = repo.Create<TargetService>();
+            var serviceProvider = repo.CreateServiceProvider();
+
+            var obj = serviceProvider.Create<TargetService>();
 
             Assert.That(obj.Svc1, Is.SameAs(svc1));
             Assert.That(obj.Svc2, Is.SameAs(svc2));
@@ -105,12 +109,14 @@ namespace Iridium.Depend.Test
             repo.Register(svc1);
             repo.Register(svc2a).As<IService2>();
 
-            var obj = repo.Create<TargetService>();
+            var serviceProvider = repo.CreateServiceProvider();
+
+            var obj = serviceProvider.Create<TargetService>();
 
             Assert.That(obj.Svc1, Is.SameAs(svc1));
             Assert.That(obj.Svc2, Is.SameAs(svc2a));
 
-            repo.Register(svc2b).Replace<IService2>();
+            repo.Register(svc2b).As<IService2>();
 
             Assert.That(obj.Svc2, Is.SameAs(svc2b));
         }
@@ -127,7 +133,9 @@ namespace Iridium.Depend.Test
             repo.Register(svc1);
             repo.Register<Service2>().As<IService2>().Singleton();
 
-            var obj = repo.Create<TargetService>();
+            var serviceProvider = repo.CreateServiceProvider();
+
+            var obj = serviceProvider.Create<TargetService>();
 
             Assert.That(obj.Svc1, Is.SameAs(svc1));
             Assert.That(obj.Svc2, Is.InstanceOf<Service2>());
@@ -137,7 +145,7 @@ namespace Iridium.Depend.Test
 
             Assert.That(svc2a, Is.SameAs(svc2b));
 
-            repo.Register<Service2>().Replace<IService2>();
+            repo.Register<Service2>().As<IService2>();
 
             Assert.That(obj.Svc2, Is.Not.SameAs(svc2a));
         }
@@ -148,7 +156,7 @@ namespace Iridium.Depend.Test
         {
             ServiceRepository repo = new ServiceRepository();
 
-            var obj = repo.Create<TargetService2>();
+            var obj = repo.CreateServiceProvider(true).Create<TargetService2>();
 
             Assert.That(obj.Svc1, Is.Null);
             Assert.That(obj.Svc2, Is.Null);
@@ -163,7 +171,9 @@ namespace Iridium.Depend.Test
 
             repo.Register(svc1);
 
-            var obj = repo.Create<TargetService2>();
+            var serviceProvider = repo.CreateServiceProvider(true);
+
+            var obj = serviceProvider.Create<TargetService2>();
 
             Assert.That(obj.Svc1, Is.SameAs(svc1));
             Assert.That(obj.Svc2, Is.Null);
@@ -181,12 +191,14 @@ namespace Iridium.Depend.Test
             repo.Register(svc1);
             repo.Register(svc2a).As<IService2>();
 
-            var obj = repo.Create<TargetService2>();
+            var serviceProvider = repo.CreateServiceProvider(true);
+
+            var obj = serviceProvider.Create<TargetService2>();
 
             Assert.That(obj.Svc1, Is.SameAs(svc1));
             Assert.That(obj.Svc2, Is.SameAs(svc2a));
 
-            repo.Register(svc2b).Replace<IService2>();
+            repo.Register(svc2b).As<IService2>();
 
             Assert.That(obj.Svc2, Is.SameAs(svc2b));
         }

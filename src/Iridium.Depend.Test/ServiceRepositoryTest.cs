@@ -9,31 +9,40 @@ namespace Iridium.Depend.Test
     {
         private interface IService1
         {
+            bool Disposed { get; } 
         }
 
         private interface IService2
         {
+            bool Disposed { get; }
         }
 
         private interface IService3
         {
-
+            bool Disposed { get; }
         }
 
-        private class Service1A : IService1
+        private class Service1A : IService1, IDisposable
         {
             public int ID;
 
             public Service1A(){}
             public Service1A(int id) => ID = id;
+
+            public void Dispose() { Disposed = true; }
+
+            public bool Disposed { get; private set; }
         }
 
         private class Service1B : IService1
         {
+            public bool Disposed { get; private set; }
         }
 
         private class Service2A : IService2
         {
+            public bool Disposed { get; private set; }
+
             public IService1 Svc1;
             public string Prop;
             public int X;
@@ -55,26 +64,25 @@ namespace Iridium.Depend.Test
             }
         }
 
-        private class Service3
+        private class ServiceX
         {
             public IService1 Svc1;
 
-            public Service3()
+            public ServiceX()
             {
-
             }
 
-            public Service3(IService1 svc)
+            public ServiceX(IService1 svc)
             {
                 Svc1 = svc;
             }
         }
 
-        private class Service4
+        private class ServiceY
         {
             public IService2 Svc2;
 
-            public Service4(IService2 svc)
+            public ServiceY(IService2 svc)
             {
                 Svc2 = svc;
             }
@@ -82,10 +90,12 @@ namespace Iridium.Depend.Test
 
         public class Service12A : IService1, IService2
         {
+            public bool Disposed { get; private set; }
         }
 
         public class Service12B : IService1, IService2
         {
+            public bool Disposed { get; private set; }
         }
 
         public interface IGenericService1<T>
@@ -105,9 +115,11 @@ namespace Iridium.Depend.Test
             repo.Register<Service2A>();
             repo.Register<Service1A>();
 
-            var s1 = repo.Get<IService1>();
-            var s2 = repo.Get<IService1>();
-            var s3 = repo.Get<IService3>();
+            var serviceProvider = repo.CreateServiceProvider();
+
+            var s1 = serviceProvider.Get<IService1>();
+            var s2 = serviceProvider.Get<IService1>();
+            var s3 = serviceProvider.Get<IService3>();
 
             Assert.That(s1, Is.InstanceOf<Service1A>());
             Assert.That(s2, Is.InstanceOf<Service1A>());
@@ -123,9 +135,11 @@ namespace Iridium.Depend.Test
             repo.Register<Service2A>();
             repo.Register<Service1A>();
 
-            var s1 = repo.Get(typeof(IService1));
-            var s2 = repo.Get(typeof(IService1));
-            var s3 = repo.Get(typeof(IService3));
+            var serviceProvider = repo.CreateServiceProvider();
+
+            var s1 = serviceProvider.Get(typeof(IService1));
+            var s2 = serviceProvider.Get(typeof(IService1));
+            var s3 = serviceProvider.Get(typeof(IService3));
 
             Assert.That(s1, Is.InstanceOf<Service1A>());
             Assert.That(s2, Is.InstanceOf<Service1A>());
@@ -140,36 +154,16 @@ namespace Iridium.Depend.Test
 
             repo.Register<Service1A>().Singleton();
 
-            var s1 = repo.Get<IService1>();
-            var s2 = repo.Get<IService1>();
+            var serviceProvider = repo.CreateServiceProvider();
+
+            var s1 = serviceProvider.Get<IService1>();
+            var s2 = serviceProvider.Get<IService1>();
 
             Assert.That(s1, Is.InstanceOf<Service1A>());
             Assert.That(s2, Is.InstanceOf<Service1A>());
             Assert.That(s1, Is.SameAs(s2));
         }
 
-        [Test]
-        public void SimpleInterface_Singleton_Reset()
-        {
-            ServiceRepository repo = new ServiceRepository();
-
-            repo.Register<Service1A>().Singleton();
-
-            var s1 = repo.Get<IService1>();
-            var s2 = repo.Get<IService1>();
-
-            Assert.That(s1, Is.InstanceOf<Service1A>());
-            Assert.That(s2, Is.InstanceOf<Service1A>());
-            Assert.That(s1, Is.SameAs(s2));
-
-            repo.Refresh<IService1>();
-
-            var s3 = repo.Get<IService1>();
-
-            Assert.That(s3, Is.InstanceOf<Service1A>());
-            Assert.That(s3, Is.Not.SameAs(s1));
-            Assert.That(s3, Is.Not.SameAs(s2));
-        }
 
         [Test]
         public void SimpleInterface_WithDependency()
@@ -178,14 +172,16 @@ namespace Iridium.Depend.Test
 
             repo.Register<Service2A>();
 
-            var s1 = repo.Get<IService2>();
+            var serviceProvider = repo.CreateServiceProvider();
+
+            var s1 = serviceProvider.Get<IService2>();
 
             Assert.That(s1, Is.InstanceOf<Service2A>());
             Assert.That(((Service2A)s1).Svc1, Is.Null);
 
-            Assert.That(repo.Register<Service1A>().RegisteredAsType, Is.EqualTo(typeof(Service1A)));
+            repo.Register<Service1A>();
 
-            s1 = repo.Get<IService2>();
+            s1 = serviceProvider.Get<IService2>();
 
             Assert.That(s1, Is.InstanceOf<Service2A>());
             Assert.That(((Service2A)s1).Svc1, Is.InstanceOf<Service1A>());
@@ -200,7 +196,9 @@ namespace Iridium.Depend.Test
 
             repo.Register(svc);
 
-            Assert.That(repo.Get<IService1>(), Is.SameAs(svc));
+            var serviceProvider = repo.CreateServiceProvider();
+
+            Assert.That(serviceProvider.Get<IService1>(), Is.SameAs(svc));
         }
 
         [Test]
@@ -214,8 +212,10 @@ namespace Iridium.Depend.Test
             repo.Register<IService1>(svc12a);
             repo.Register<IService2>(svc12b);
 
-            Assert.That(repo.Get<IService1>(), Is.SameAs(svc12a));
-            Assert.That(repo.Get<IService2>(), Is.SameAs(svc12b));
+            var serviceProvider = repo.CreateServiceProvider();
+
+            Assert.That(serviceProvider.Get<IService1>(), Is.SameAs(svc12a));
+            Assert.That(serviceProvider.Get<IService2>(), Is.SameAs(svc12b));
         }
 
         [Test]
@@ -226,11 +226,13 @@ namespace Iridium.Depend.Test
 
             ServiceRepository repo = new ServiceRepository();
 
-            Assert.That(repo.Register(svc12a).As<IService1>().RegisteredAsType, Is.EqualTo(typeof(IService1)));
-            Assert.That(repo.Register(svc12b).As<IService2>().RegisteredAsType, Is.EqualTo(typeof(IService2)));
+            repo.Register(svc12a).As<IService1>();
+            repo.Register(svc12b).As<IService2>();
 
-            Assert.That(repo.Get<IService1>(), Is.SameAs(svc12a));
-            Assert.That(repo.Get<IService2>(), Is.SameAs(svc12b));
+            var serviceProvider = repo.CreateServiceProvider();
+
+            Assert.That(serviceProvider.Get<IService1>(), Is.SameAs(svc12a));
+            Assert.That(serviceProvider.Get<IService2>(), Is.SameAs(svc12b));
         }
 
         [Test]
@@ -241,8 +243,70 @@ namespace Iridium.Depend.Test
             repo.Register<Service12A>().As<IService1>();
             repo.Register<Service12B>().As<IService2>();
 
-            Assert.That(repo.Get<IService1>(), Is.InstanceOf<Service12A>());
-            Assert.That(repo.Get<IService2>(), Is.InstanceOf<Service12B>());
+            var serviceProvider = repo.CreateServiceProvider();
+
+            Assert.That(serviceProvider.Get<IService1>(), Is.InstanceOf<Service12A>());
+            Assert.That(serviceProvider.Get<IService2>(), Is.InstanceOf<Service12B>());
+        }
+
+        [Test]
+        public void TypeWithoutAs()
+        {
+            ServiceRepository repo = new ServiceRepository();
+
+            repo.Register<Service12A>();
+
+            var provider = repo.CreateServiceProvider();
+
+            Assert.That(provider.Get<IService1>(), Is.InstanceOf<Service12A>());
+            Assert.That(provider.Get<IService2>(), Is.InstanceOf<Service12A>());
+            Assert.That(provider.Get<Service12A>(), Is.InstanceOf<Service12A>());
+        }
+
+        [Test]
+        public void TypeAsInterface()
+        {
+            ServiceRepository repo = new ServiceRepository();
+
+            repo.Register<Service12A>().As<IService1>();
+
+            var provider = repo.CreateServiceProvider();
+
+            Assert.That(provider.Get<IService1>(), Is.InstanceOf<Service12A>());
+            Assert.That(provider.Get<IService2>(), Is.Null);
+            Assert.That(provider.Get<Service1A>(), Is.Null);
+        }
+
+        [Test]
+        public void TypeAsMultipleInterfaces()
+        {
+            ServiceRepository repo = new ServiceRepository();
+
+            repo.Register<Service12A>()
+                .As<IService1>()
+                .As<IService2>();
+
+            var provider = repo.CreateServiceProvider();
+
+            Assert.That(provider.Get<IService1>(), Is.InstanceOf<Service12A>());
+            Assert.That(provider.Get<IService2>(), Is.InstanceOf<Service12A>());
+            Assert.That(provider.Get<Service12A>(), Is.Null);
+        }
+
+        [Test]
+        public void TypeAsInterfaceAndSelf()
+        {
+            ServiceRepository repo = new ServiceRepository();
+
+            repo.Register<Service12A>()
+                .AsSelf()
+                .As<IService2>();
+
+            var provider = repo.CreateServiceProvider();
+
+            Assert.That(provider.Get<IService1>(), Is.Null);
+            Assert.That(provider.Get<IService2>(), Is.InstanceOf<Service12A>());
+            Assert.That(provider.Get<Service12A>(), Is.InstanceOf<Service12A>());
         }
 
 
@@ -255,7 +319,9 @@ namespace Iridium.Depend.Test
 
             repo.Register(svc1);
 
-            var svc3 = repo.Create<Service3>();
+            var serviceProvider = repo.CreateServiceProvider();
+
+            var svc3 = serviceProvider.Create<ServiceX>();
 
             Assert.That(svc3, Is.Not.Null);
             Assert.That(svc3.Svc1, Is.SameAs(svc1));
@@ -270,11 +336,13 @@ namespace Iridium.Depend.Test
 
             repo.Register(svc1);
 
-            var svc3 = repo.Create(typeof(Service3));
+            var serviceProvider = repo.CreateServiceProvider();
+
+            var svc3 = serviceProvider.Create(typeof(ServiceX));
 
             Assert.That(svc3, Is.Not.Null);
-            Assert.That(svc3, Is.InstanceOf<Service3>());
-            Assert.That(((Service3)svc3).Svc1, Is.SameAs(svc1));
+            Assert.That(svc3, Is.InstanceOf<ServiceX>());
+            Assert.That(((ServiceX)svc3).Svc1, Is.SameAs(svc1));
         }
 
         [Test]
@@ -285,8 +353,10 @@ namespace Iridium.Depend.Test
             repo.Register<Service1A>();
             repo.Register<Service2A>();
 
-            var svc3 = repo.Create<Service3>();
-            var svc4 = repo.Create<Service4>();
+            var serviceProvider = repo.CreateServiceProvider();
+
+            var svc3 = serviceProvider.Create<ServiceX>();
+            var svc4 = serviceProvider.Create<ServiceY>();
 
             Assert.That(svc3, Is.Not.Null);
             Assert.That(svc4, Is.Not.Null);
@@ -302,7 +372,9 @@ namespace Iridium.Depend.Test
 
             repo.Register<Service2A>();
 
-            var svc3 = repo.Create<Service3>();
+            var serviceProvider = repo.CreateServiceProvider();
+
+            var svc3 = serviceProvider.Create<ServiceX>();
 
             Assert.That(svc3, Is.Not.Null);
             Assert.That(svc3.Svc1, Is.Null);
@@ -315,7 +387,9 @@ namespace Iridium.Depend.Test
 
             repo.Register<Service1A>();
 
-            var svc4 = repo.Create<Service4>();
+            var serviceProvider = repo.CreateServiceProvider();
+
+            var svc4 = serviceProvider.Create<ServiceY>();
 
             Assert.That(svc4, Is.Not.Null);
             Assert.That(svc4.Svc2, Is.Null);
@@ -328,7 +402,9 @@ namespace Iridium.Depend.Test
 
             repo.Register<Service1A>();
 
-            var svc3 = repo.Create<IService3>();
+            var serviceProvider = repo.CreateServiceProvider();
+
+            var svc3 = serviceProvider.Create<IService3>();
 
             Assert.That(svc3, Is.Null);
         }
@@ -341,9 +417,11 @@ namespace Iridium.Depend.Test
             repo.Register<Service1A>();
             repo.Register<Service1B>();
 
-            repo.UnRegister<Service1A>();
+            var serviceProvider = repo.CreateServiceProvider();
 
-            Assert.That(repo.Get<IService1>(), Is.InstanceOf<Service1B>());
+            // repo.UnRegister<Service1A>();
+            //
+            // Assert.That(serviceProvider.Get<IService1>(), Is.InstanceOf<Service1B>());
         }
 
         [Test]
@@ -353,9 +431,11 @@ namespace Iridium.Depend.Test
 
             repo.Register<Service1A>();
 
-            repo.UnRegister<Service1A>();
-
-            Assert.That(repo.Get<IService1>(), Is.Null);
+            // repo.UnRegister<Service1A>();
+            //
+            // var serviceProvider = repo.CreateServiceProvider();
+            //
+            // Assert.That(serviceProvider.Get<IService1>(), Is.Null);
         }
 
         [Test]
@@ -366,11 +446,13 @@ namespace Iridium.Depend.Test
             repo.Register<Service1A>();
             repo.Register<Service1B>();
 
-            Assert.That(repo.Get<IService1>(), Is.InstanceOf<Service1A>());
+            var serviceProvider = repo.CreateServiceProvider();
 
-            repo.UnRegister<IService1>();
-
-            Assert.That(repo.Get<IService1>(), Is.Null);
+            // Assert.That(serviceProvider.Get<IService1>(), Is.InstanceOf<Service1A>());
+            //
+            // repo.UnRegister<IService1>();
+            //
+            // Assert.That(serviceProvider.Get<IService1>(), Is.Null);
         }
 
         [Test]
@@ -378,26 +460,32 @@ namespace Iridium.Depend.Test
         {
             ServiceRepository repo = new ServiceRepository();
 
-            repo.Register<Service1B>();
             repo.Register<Service1A>();
+            repo.Register<Service1B>();
 
-            Assert.That(repo.Get<IService1>(), Is.InstanceOf<Service1B>());
+            var serviceProvider = repo.CreateServiceProvider();
+
+            Assert.That(serviceProvider.Get<IService1>(), Is.InstanceOf<Service1B>());
         }
 
         [Test]
         public void Multiple_Replace()
         {
-            ServiceRepository repo = new ServiceRepository();
-
-            repo.Register<Service1B>();
-            repo.Register<Service1A>().Replace<IService1>();
-
-            Assert.That(repo.Get<IService1>(), Is.InstanceOf<Service1A>());
-
-            repo = new ServiceRepository();
-
-            repo.Register<Service1B>();
-            repo.Register<Service1A>().Replace(typeof(IService1));
+            // ServiceRepository repo = new ServiceRepository();
+            //
+            // repo.Register<Service1B>();
+            // repo.Register<Service1A>().Replace<IService1>();
+            //
+            // var serviceProvider = repo.CreateServiceProvider();
+            //
+            // Assert.That(serviceProvider.Get<IService1>(), Is.InstanceOf<Service1A>());
+            //
+            // repo = new ServiceRepository();
+            //
+            // serviceProvider = repo.CreateServiceProvider();
+            //
+            // repo.Register<Service1B>();
+            // repo.Register<Service1A>().Replace(typeof(IService1));
         }
 
         [Test]
@@ -407,7 +495,9 @@ namespace Iridium.Depend.Test
 
             repo.Register<IService1>(() => new Service1A(123));
 
-            var service1 = repo.Get<IService1>();
+            var serviceProvider = repo.CreateServiceProvider();
+
+            var service1 = serviceProvider.Get<IService1>();
 
             Assert.That(service1, Is.InstanceOf<Service1A>());
             Assert.That(((Service1A)service1).ID, Is.EqualTo(123));
@@ -420,7 +510,9 @@ namespace Iridium.Depend.Test
 
             repo.Register<IService1>(svc => svc.Create<Service1A>(123));
 
-            var service1 = repo.Get<IService1>();
+            var serviceProvider = repo.CreateServiceProvider();
+
+            var service1 = serviceProvider.Get<IService1>();
 
             Assert.That(service1, Is.InstanceOf<Service1A>());
             Assert.That(((Service1A)service1).ID, Is.EqualTo(123));
@@ -434,13 +526,15 @@ namespace Iridium.Depend.Test
             repo.Register<Service2A>();
             repo.Register<Service1A>();
 
-            var svc2a = repo.Get<IService2>();
+            var serviceProvider = repo.CreateServiceProvider();
+
+            var svc2a = serviceProvider.Get<IService2>();
 
             Assert.That(svc2a, Is.InstanceOf<Service2A>());
 
             Assert.That(((Service2A)svc2a).Prop, Is.Null);
 
-            svc2a = repo.Create<Service2A>("Hello");
+            svc2a = serviceProvider.Create<Service2A>("Hello");
 
             Assert.That(svc2a, Is.InstanceOf<Service2A>());
 
@@ -456,17 +550,157 @@ namespace Iridium.Depend.Test
             repo.Register<Service2A>();
             repo.Register<Service1A>();
 
-            var svc2a = repo.Get<IService2>();
+            var serviceProvider = repo.CreateServiceProvider();
+
+            var svc2a = serviceProvider.Get<IService2>();
 
             Assert.That(svc2a, Is.InstanceOf<Service2A>());
 
             Assert.That(((Service2A)svc2a).Prop, Is.Null);
 
-            svc2a = (Service2A) repo.Create(typeof(Service2A),"Hello");
+            svc2a = (Service2A) serviceProvider.Create(typeof(Service2A),"Hello");
 
             Assert.That(svc2a, Is.InstanceOf<Service2A>());
 
             Assert.That(((Service2A)svc2a).Prop, Is.EqualTo("Hello"));
+        }
+
+        [Test]
+        public void TestDoubleRegistration_Transient()
+        {
+            var repo = new ServiceRepository();
+
+            repo.Register<Service1A>().As<IService1>();
+            repo.Register<Service1B>().As<IService1>();
+
+            var provider = repo.CreateServiceProvider();
+
+            var svc1 = provider.Get<IService1>();
+            var svc2 = provider.Get<IService1>();
+
+            Assert.That(svc1, Is.InstanceOf<Service1B>());
+            Assert.That(svc1, Is.Not.SameAs(svc2));
+        }
+
+        [Test]
+        public void TestDoubleRegistration_Scoped()
+        {
+            var repo = new ServiceRepository();
+
+            repo.Register<Service1A>().As<IService1>().Scoped();
+            repo.Register<Service1B>().As<IService1>().Scoped();
+
+            var provider = repo.CreateServiceProvider();
+
+            var svc1 = provider.Get<IService1>();
+            var svc2 = provider.Get<IService1>();
+
+            var scope = provider.CreateScope();
+
+            var svc1a = scope.Get<IService1>();
+            var svc2a = scope.Get<IService1>();
+
+            Assert.That(svc1, Is.InstanceOf<Service1B>());
+            Assert.That(svc1a, Is.InstanceOf<Service1B>());
+
+            Assert.That(svc1, Is.SameAs(svc2));
+            Assert.That(svc1a, Is.SameAs(svc2a));
+            Assert.That(svc1, Is.Not.SameAs(svc1a));
+        }
+
+        [Test]
+        public void TestDoubleRegistration_Singleton()
+        {
+            var repo = new ServiceRepository();
+
+            repo.Register<Service1A>().As<IService1>().Singleton();
+            repo.Register<Service1B>().As<IService1>().Singleton();
+
+            var provider = repo.CreateServiceProvider();
+
+            var svc1 = provider.Get<IService1>();
+            var svc2 = provider.Get<IService1>();
+
+            var scope = provider.CreateScope();
+
+            var svc1a = scope.Get<IService1>();
+            var svc2a = scope.Get<IService1>();
+
+            Assert.That(svc1, Is.InstanceOf<Service1B>());
+            Assert.That(svc1a, Is.InstanceOf<Service1B>());
+
+            Assert.That(svc1, Is.SameAs(svc2));
+            Assert.That(svc1a, Is.SameAs(svc2a));
+            Assert.That(svc1, Is.SameAs(svc1a));
+        }
+
+        [Test]
+        public void TestDoubleRegistration_IfNotExists_Transient()
+        {
+            var repo = new ServiceRepository();
+
+            repo.Register<Service1A>().As<IService1>();
+            repo.Register<Service1B>().As<IService1>().IfNotRegistered<IService1>();
+
+            var provider = repo.CreateServiceProvider();
+
+            var svc1 = provider.Get<IService1>();
+            var svc2 = provider.Get<IService1>();
+
+            Assert.That(svc1, Is.InstanceOf<Service1A>());
+            Assert.That(svc1, Is.Not.SameAs(svc2));
+        }
+
+        [Test]
+        public void TestDoubleRegistration_IfNotExists_Scoped()
+        {
+            var repo = new ServiceRepository();
+
+            repo.Register<Service1A>().As<IService1>().Scoped();
+            repo.Register<Service1B>().As<IService1>().Scoped().IfNotRegistered<IService1>();
+
+            var provider = repo.CreateServiceProvider();
+
+            var svc1 = provider.Get<IService1>();
+            var svc2 = provider.Get<IService1>();
+
+            var scope = provider.CreateScope();
+
+            var svc1a = scope.Get<IService1>();
+            var svc2a = scope.Get<IService1>();
+
+            Assert.That(svc1, Is.InstanceOf<Service1A>());
+            Assert.That(svc1a, Is.InstanceOf<Service1A>());
+
+            Assert.That(svc1, Is.SameAs(svc2));
+            Assert.That(svc1a, Is.SameAs(svc2a));
+            Assert.That(svc1, Is.Not.SameAs(svc1a));
+        }
+
+        [Test]
+        public void TestDoubleRegistration_IfNotExists_Singleton()
+        {
+            var repo = new ServiceRepository();
+
+            repo.Register<Service1A>().As<IService1>().Singleton();
+            repo.Register<Service1B>().As<IService1>().Singleton().IfNotRegistered<IService1>();
+
+            var provider = repo.CreateServiceProvider();
+
+            var svc1 = provider.Get<IService1>();
+            var svc2 = provider.Get<IService1>();
+
+            var scope = provider.CreateScope();
+
+            var svc1a = scope.Get<IService1>();
+            var svc2a = scope.Get<IService1>();
+
+            Assert.That(svc1, Is.InstanceOf<Service1A>());
+            Assert.That(svc1a, Is.InstanceOf<Service1A>());
+
+            Assert.That(svc1, Is.SameAs(svc2));
+            Assert.That(svc1a, Is.SameAs(svc2a));
+            Assert.That(svc1, Is.SameAs(svc1a));
         }
 
         [Test]
@@ -476,10 +710,43 @@ namespace Iridium.Depend.Test
         }
 
         [Test]
-        public void RegisterFail()
+        public void TestScopeDispose1()
         {
-            Assert.Catch<ArgumentException>(() => new ServiceRepository().Register<Service1A>().As<IService2>());
-        }
+            ServiceRepository repo = new ServiceRepository();
 
+            repo.Register<Service1A>().As<IService1>().Scoped();
+            repo.Register<Service2A>().As<IService2>().Scoped();
+
+            var provider = repo.CreateServiceProvider();
+
+            var svc1 = provider.Get<IService1>();
+            var svc2 = provider.Get<IService2>();
+
+            Assert.That(svc1, Is.Not.Null);
+            Assert.That(provider.Get<IService1>(), Is.SameAs(svc1));
+            Assert.That(provider.Get<IService1>(), Is.SameAs(svc1));
+
+            var scope = provider.CreateScope();
+
+            var svc1a = scope.Get<IService1>();
+            var svc1b = scope.Get<IService1>();
+            var svc2a = scope.Get<IService2>();
+            var svc2b = scope.Get<IService2>();
+
+            Assert.That(svc1a, Is.Not.Null);
+            Assert.That(svc1b, Is.SameAs(svc1a));
+            Assert.That(svc1a, Is.Not.SameAs(svc1));
+
+            Assert.That(svc2a, Is.Not.Null);
+            Assert.That(svc2b, Is.SameAs(svc2a));
+            Assert.That(svc2a, Is.Not.SameAs(svc2));
+
+            scope.Dispose();
+
+            Assert.That(svc1.Disposed, Is.False);
+            Assert.That(svc2.Disposed, Is.False);
+            Assert.That(svc1a.Disposed, Is.True);
+            Assert.That(svc2a.Disposed, Is.False);
+        }
     }
 }

@@ -865,7 +865,9 @@ namespace Iridium.Depend.Test
         {
             var repo = new ServiceRepository();
 
-            var svc = repo.Create<ServiceA>();
+            var serviceProvider = repo.CreateServiceProvider();
+
+            var svc = serviceProvider.Create<ServiceA>();
 
             Assert.That(svc, Is.Not.Null);
             Assert.That(svc.ConstructorCalled, Is.EqualTo("()"));
@@ -882,7 +884,9 @@ namespace Iridium.Depend.Test
 
             repo.Register(new Service1());
 
-            var svc = repo.Create<ServiceA>();
+            var serviceProvider = repo.CreateServiceProvider();
+
+            var svc = serviceProvider.Create<ServiceA>();
 
             Assert.That(svc, Is.Not.Null);
             Assert.That(svc.ConstructorCalled, Is.EqualTo("(IService1)"));
@@ -899,7 +903,9 @@ namespace Iridium.Depend.Test
 
             repo.Register(new Service2());
 
-            var svc = repo.Create<ServiceA>();
+            var serviceProvider = repo.CreateServiceProvider();
+
+            var svc = serviceProvider.Create<ServiceA>();
 
             Assert.That(svc, Is.Not.Null);
             Assert.That(svc.ConstructorCalled, Is.EqualTo("(IService2)"));
@@ -917,7 +923,9 @@ namespace Iridium.Depend.Test
             repo.Register(new Service1());
             repo.Register(new Service2());
 
-            var svc = repo.Create<ServiceA>();
+            var serviceProvider = repo.CreateServiceProvider();
+
+            var svc = serviceProvider.Create<ServiceA>();
 
             Assert.That(svc, Is.Not.Null);
             Assert.That(svc.ConstructorCalled, Is.EqualTo("(IService1,IService2)"));
@@ -934,7 +942,9 @@ namespace Iridium.Depend.Test
 
             repo.Register(new Service1());
 
-            var svc = repo.Create<ServiceA>("X");
+            var serviceProvider = repo.CreateServiceProvider();
+
+            var svc = serviceProvider.Create<ServiceA>("X");
 
             Assert.That(svc, Is.Not.Null);
             Assert.That(svc.ConstructorCalled, Is.EqualTo("(string,IService1)"));
@@ -951,7 +961,9 @@ namespace Iridium.Depend.Test
 
             repo.Register(new Service2());
 
-            var svc = repo.Create<ServiceA>("X");
+            var serviceProvider = repo.CreateServiceProvider();
+
+            var svc = serviceProvider.Create<ServiceA>("X");
 
             Assert.That(svc, Is.Not.Null);
             Assert.That(svc.ConstructorCalled, Is.EqualTo("(string,IService2)"));
@@ -969,7 +981,9 @@ namespace Iridium.Depend.Test
             repo.Register(new Service1());
             repo.Register(new Service2());
 
-            var svc = repo.Create<ServiceA>("X");
+            var serviceProvider = repo.CreateServiceProvider();
+
+            var svc = serviceProvider.Create<ServiceA>("X");
 
             Assert.That(svc, Is.Not.Null);
             Assert.That(svc.ConstructorCalled, Is.EqualTo("(string,IService1,IService2)"));
@@ -983,7 +997,9 @@ namespace Iridium.Depend.Test
         {
             var repo = new ServiceRepository();
 
-            var svc = repo.Create<ServiceA>(new {x = 5});
+            var serviceProvider = repo.CreateServiceProvider();
+
+            var svc = serviceProvider.Create<ServiceA>(new {x = 5});
 
             Assert.That(svc, Is.Not.Null);
             Assert.That(svc.ConstructorCalled, Is.EqualTo("(int)"));
@@ -992,13 +1008,13 @@ namespace Iridium.Depend.Test
             repo.Register(new Service1());
             repo.Register(new Service2());
 
-            svc = repo.Create<ServiceA>(new { x = 5 });
+            svc = serviceProvider.Create<ServiceA>(new { x = 5 });
 
             Assert.That(svc, Is.Not.Null);
             Assert.That(svc.ConstructorCalled, Is.EqualTo("(int,IService1,IService2)"));
             Assert.That(svc.X, Is.EqualTo(5));
 
-            svc = repo.Create<ServiceA>(new { x = 5, y = 6 });
+            svc = serviceProvider.Create<ServiceA>(new { x = 5, y = 6 });
 
             Assert.That(svc, Is.Not.Null);
             Assert.That(svc.ConstructorCalled, Is.EqualTo("(int,int,IService1,IService2)"));
@@ -1013,7 +1029,7 @@ namespace Iridium.Depend.Test
 
             var svc2 = new Service2();
 
-            svc = repo.Create<ServiceA>(new { service2 = svc2, x = 5 });
+            svc = serviceProvider.Create<ServiceA>(new { service2 = svc2, x = 5 });
 
             Assert.That(svc, Is.Not.Null);
             Assert.That(svc.ConstructorCalled, Is.EqualTo("(int,IService1,IService2)"));
@@ -1035,7 +1051,9 @@ namespace Iridium.Depend.Test
             repo.Register<Service1>();
             repo.Register<Service2>();
 
-            var svc = repo.Create<ServiceA>(parameters);
+            var serviceProvider = repo.CreateServiceProvider();
+
+            var svc = serviceProvider.Create<ServiceA>(parameters);
 
             Assert.That(svc.ConstructorCalled, Is.EqualTo($"({expectedConstructor},IService1,IService2)"));
 

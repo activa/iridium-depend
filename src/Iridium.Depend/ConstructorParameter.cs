@@ -12,10 +12,6 @@ namespace Iridium.Depend
         public Type Type;
         private readonly Func<object> _factory;
 
-        protected ConstructorParameter()
-        {
-        }
-
         public ConstructorParameter(Func<object> factory)
         {
             _factory = factory;
@@ -28,21 +24,8 @@ namespace Iridium.Depend
             Type = type;
         }
 
-        public ConstructorParameter(object value, Type type)
-        {
-            _value = value;
-            Type = type;
-        }
-
         public ConstructorParameter(object value)
         {
-            _value = value;
-            Type = value?.GetType();
-        }
-
-        public ConstructorParameter(string name, object value)
-        {
-            Name = name;
             _value = value;
             Type = value?.GetType();
         }
@@ -68,14 +51,4 @@ namespace Iridium.Depend
         }
     }
 
-    internal class ConstructorParameter<T> : ConstructorParameter
-    {
-        public ConstructorParameter(string name, T value) : base(name, value, typeof(T))
-        {
-        }
-
-        public ConstructorParameter(T value) : base(value, typeof(T))
-        {
-        }
-    }
 }

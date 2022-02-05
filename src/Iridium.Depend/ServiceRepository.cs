@@ -25,272 +25,47 @@
 #endregion
 
 using System;
-using System.Collections;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Linq;
-using System.Linq.Expressions;
-using System.Reflection;
 
 namespace Iridium.Depend
 {
     public class ServiceRepository : IServiceRepository
     {
-        public static ServiceRepository Default = new ServiceRepository();
+        public static ServiceRepository _default;
+
+        public static ServiceRepository Default => _default ??= new ServiceRepository();
 
         private readonly List<ServiceDefinition> _services = new List<ServiceDefinition>();
-        private readonly ConcurrentDictionary<Type, PropertyInfo[]> _injectProperties = new ConcurrentDictionary<Type, PropertyInfo[]>();
-        private readonly ConcurrentDictionary<Type, List<ServiceDefinition>> _cache = new ConcurrentDictionary<Type, List<ServiceDefinition>>();
-        private readonly ConcurrentDictionary<Type, (Type type, Delegate factory)> _factoryTypeCache = new ConcurrentDictionary<Type, (Type type, Delegate factory)>();
-        private readonly ServiceResolveStrategy _resolveStrategy = ServiceResolveStrategy.First;
 
         public ServiceRepository()
         {
         }
-
-        public ServiceRepository(ServiceResolveStrategy resolveStrategy)
-        {
-            _resolveStrategy = resolveStrategy;
-        }
-
-        public ServiceResolveStrategy ResolveStrategy => _resolveStrategy;
-
-        public T Get<T>()
-        {
-            return (T) _Get(typeof(T));
-        }
-
-        public T Get<T>(params object[] parameters)
-        {
-            return (T) _Get(typeof(T), ConstructorParameter.GenerateConstructorParameters(parameters).ToArray());
-        }
-
-        public T Get<T, TParam1>(TParam1 param)
-        {
-            return (T) _Get(typeof(T), new ConstructorParameter[] {new ConstructorParameter<TParam1>(param)});
-        }
-
-        public T Get<T, TParam1, TParam2>(TParam1 param1, TParam2 param2)
-        {
-            return (T)_Get(typeof(T), new ConstructorParameter[] { new ConstructorParameter<TParam1>(param1), new ConstructorParameter<TParam2>(param2) });
-        }
-
-        public IEnumerable<T> GetAll<T>()
-        {
-            return _GetAll(typeof(T)).Cast<T>();
-        }
-
-        internal bool CanResolve(Type type) => GetMatchingServices(type).Count > 0;
-
-        private object CallBestConstructor(IEnumerable<ConstructorInfo> constructors, ConstructorParameter[] parameters)
-        {
-            parameters ??= new ConstructorParameter[0];
-
-            var bestCandidate = constructors
-                .Select(constructor => new ConstructorCandidate(this, constructor, parameters))
-                .Where(candidate => candidate.MatchScore >= 0)
-                .OrderByDescending(c => c.MatchScore)
-                .FirstOrDefault();
-
-            return bestCandidate?.Invoke();
-        }
-
-        private List<ServiceDefinition> GetMatchingServices(Type type)
-        {
-            return _cache.GetOrAdd(type, t =>
-            {
-                lock (_services)
-                    return _services.Where(svc => svc.IsMatch(t)).ToList();
-            });
-        }
-
-        private object _Get(Type type, ConstructorParameter[] parameters = null)
-        {
-            if (type.IsFactoryValue())
-            {
-                return CreateFactoryValue(type);
-            }
-            
-            foreach (var serviceDefinition in GetMatchingServices(type))
-            {
-                var obj = _Get(type, serviceDefinition, parameters);
-
-                if (obj != null)
-                    return obj;
-            }
-
-            return null;
-        }
-
-        private IEnumerable<object> _GetAll(Type type)
-        {
-            if (type.IsFactoryValue())
-            {
-                return new[] { CreateFactoryValue(type) };
-            }
-
-            return GetMatchingServices(type).Select(svc => _Get(type, svc)).Where(o => o != null);
-        }
-
-        private object _Get(Type type, ServiceDefinition serviceDefinition, ConstructorParameter[] parameters = null)
-        {
-            var obj = serviceDefinition.GetSingletonObject(type);
-
-            if (obj != null)
-            {
-                SetInjectProperties(obj);
-                return obj;
-            }
-
-            if (serviceDefinition.Factory != null)
-                obj = serviceDefinition.Factory(this, type);
-            else
-                obj = CallBestConstructor(serviceDefinition.MatchingConstructors(type), parameters);
-
-            if (obj != null)
-            {
-                SetInjectProperties(obj);
-
-                if (serviceDefinition.Singleton)
-                {
-                    serviceDefinition.SetSingletonObject(type, obj);
-                }
-
-                return obj;
-            }
-
-            return null;
-        }
-
-        public object Get(Type type, params object[] parameters)
-        {
-            return _Get(type, parameters.Select(p => new ConstructorParameter(p)).ToArray());
-        }
-
-        private object _Create(Type type, ConstructorParameter[] parameters = null)
-        {
-            var obj = CallBestConstructor(new ServiceDefinition(type).Constructors, parameters);
-
-            if (obj == null)
-                return null;
-
-            SetInjectProperties(obj);
-
-            return obj;
-        }
-
-        public object Create(Type type)
-        {
-            return _Create(type);
-        }
-
-        public object Create(Type type, params object[] parameters)
-        {
-            return _Create(type, ConstructorParameter.GenerateConstructorParameters(parameters).ToArray());
-        }
-
-        public T Create<T>() where T : class
-        {
-            return (T)_Create(typeof(T));
-        }
-
-        public T Create<T>(params object[] parameters) where T : class
-        {
-            return (T) Create(typeof(T), parameters);
-        }
-
-        public T Create<T,TParam1>(TParam1 param) where T : class
-        {
-            return (T)_Create(typeof(T), new ConstructorParameter[] {new ConstructorParameter<TParam1>(param)});
-        }
-
-        public T Create<T, TParam1, TParam2>(TParam1 param1, TParam2 param2) where T : class
-        {
-            return (T)_Create(typeof(T), new ConstructorParameter[] { new ConstructorParameter<TParam1>(param1), new ConstructorParameter<TParam2>(param2) });
-        }
-
-        public void UpdateDependencies(object o)
-        {
-            SetInjectProperties(o);
-        }
-
-        private void SetInjectProperties(object o)
-        {
-            if (o == null)
-                return;
-
-            var type = o.GetType();
-
-            var injectProperties = _injectProperties.GetOrAdd(type, t => type.GetProperties(BindingFlags.Public | BindingFlags.Instance).Where(p => p.CanWrite && p.GetCustomAttribute<InjectAttribute>() != null).ToArray());
-
-            foreach (var property in injectProperties)
-            {
-                if (CanResolve(property.PropertyType))
-                {
-                    property.SetValue(o, Get(property.PropertyType));
-                }
-                else if (property.PropertyType.IsFactoryValue())
-                {
-                    property.SetValue(o, CreateFactoryValue(property.PropertyType));
-                }
-            }
-        }
-
         private ServiceDefinition AddService(ServiceDefinition service)
         {
             lock (_services)
             {
-                if (_resolveStrategy == ServiceResolveStrategy.First)
-                    _services.Add(service);
-                else
-                    _services.Insert(0,service);
+                _services.Add(service);
             }
 
-            _cache.Clear();
+            TriggerChangeEvent();
 
             return service;
         }
 
-        public void UnRegister<T>()
-        {
-            UnRegister(typeof(T));
-        }
-
-        public void UnRegister(Type type)
+        internal void RemoveService(ServiceDefinition service)
         {
             lock (_services)
-                _services.RemoveAll(svc => svc.IsMatch(type));
+                _services.Remove(service);
 
-            _cache.Clear();
+            TriggerChangeEvent();
         }
 
-        public void Refresh(bool disposePrevious = false)
-        {
-            foreach (var service in _services)
-            {
-                service.ClearStoredSingleton(disposePrevious);
-            }
-        }
-
-        public void Refresh<T>(bool disposePrevious = false)
-        {
-            Refresh(typeof(T), disposePrevious);
-        }
-
-        public void Refresh(Type type, bool disposePrevious = false)
-        {
-            foreach (var serviceDefinition in GetMatchingServices(type))
-            {
-                serviceDefinition.ClearStoredSingleton(disposePrevious);
-            }
-        }
-
-        public IServiceRegistrationResult Register<T>()
+        public IServiceRegistrationResult<T,T> Register<T>()
         {
             var serviceDefinition = AddService(new ServiceDefinition(typeof(T)));
 
-            return new ServiceRegistrationResult(this, serviceDefinition);
+            return new ServiceRegistrationResult<T,T>(this, serviceDefinition);
         }
 
         public IServiceRegistrationResult Register(Type type)
@@ -311,7 +86,7 @@ namespace Iridium.Depend
             return new ServiceRegistrationResult(this, serviceDefinition);
         }
 
-        public IServiceRegistrationResult Register<T>(T service)
+        public IServiceRegistrationResult<T,T> Register<T>(T service)
         {
             if (service == null)
                 throw new ArgumentNullException(nameof(service));
@@ -320,7 +95,7 @@ namespace Iridium.Depend
 
             AddService(serviceDefinition);
 
-            return new ServiceRegistrationResult(this, serviceDefinition);
+            return new ServiceRegistrationResult<T,T>(this, serviceDefinition);
         }
 
         public IServiceRegistrationResult Register(Type registrationType, Func<object> factoryMethod)
@@ -347,7 +122,7 @@ namespace Iridium.Depend
             return new ServiceRegistrationResult(this, serviceDefinition);
         }
 
-        public IServiceRegistrationResult Register(Type type, Func<IServiceRepository, Type, object> factoryMethod)
+        public IServiceRegistrationResult Register(Type type, Func<IServiceProvider, Type, object> factoryMethod)
         {
             if (factoryMethod == null)
                 throw new ArgumentNullException(nameof(factoryMethod));
@@ -359,7 +134,7 @@ namespace Iridium.Depend
             return new ServiceRegistrationResult(this, serviceDefinition);
         }
 
-        public IServiceRegistrationResult Register<T>(Func<T> factoryMethod)
+        public IServiceRegistrationResult<T,T> Register<T>(Func<T> factoryMethod)
         {
             if (factoryMethod == null)
                 throw new ArgumentNullException(nameof(factoryMethod));
@@ -368,10 +143,10 @@ namespace Iridium.Depend
 
             AddService(serviceDefinition);
 
-            return new ServiceRegistrationResult(this, serviceDefinition);
+            return new ServiceRegistrationResult<T,T>(this, serviceDefinition);
         }
 
-        public IServiceRegistrationResult Register<T>(Func<IServiceRepository, T> factoryMethod)
+        public IServiceRegistrationResult<T,T> Register<T>(Func<IServiceProvider, T> factoryMethod)
         {
             if (factoryMethod == null)
                 throw new ArgumentNullException(nameof(factoryMethod));
@@ -380,38 +155,30 @@ namespace Iridium.Depend
 
             AddService(serviceDefinition);
 
-            return new ServiceRegistrationResult(this, serviceDefinition);
+            return new ServiceRegistrationResult<T,T>(this, serviceDefinition);
         }
 
-        public Type[] RegisteredTypes()
+        public Type[] ResolvableTypes()
         {
             lock (_services)
-                return _services.Select(svc => svc.RegistrationType).ToArray();
+                return _services.SelectMany(svc => svc.RegistrationTypes).ToArray();
         }
 
-        internal void RemoveConflicting(Type registrationType, ServiceDefinition svcDef)
+        public IServiceProvider CreateServiceProvider()
         {
-            lock (_services)
-                _services.RemoveAll(svc => !ReferenceEquals(svcDef, svc) && svc.IsMatch(registrationType));
+            return new ServiceScope(new ServiceResolver(this));
         }
 
-        private object CreateFactoryValue(Type type)
+        public IServiceProvider CreateServiceProvider(bool wireProperties)
         {
-            var (lazyType, factory) = _factoryTypeCache.GetOrAdd(type, t =>
-            {
-                var targetType = t.GetGenericArguments()[0];
-
-                var getMethod = typeof(ServiceRepository).GetMethod("Get", new[] { typeof(Type), typeof(object[]) });
-
-                var methodCall = Expression.Call(Expression.Constant(this), getMethod, Expression.Constant(targetType), Expression.Constant(new object[0]));
-
-                var lambda = Expression.Lambda(Expression.TypeAs(methodCall, targetType)).Compile();
-
-                return (type.GetGenericTypeDefinition().MakeGenericType(targetType), lambda);
-            });
-
-            return Activator.CreateInstance(lazyType, factory);
+            return new ServiceScope(new ServiceResolver(this, wireProperties));
         }
 
+
+        internal IEnumerable<ServiceDefinition> ServiceDefinitions => _services;
+
+        internal void TriggerChangeEvent() => Changed?.Invoke(this, EventArgs.Empty);
+
+        internal event EventHandler Changed;
     }
 }

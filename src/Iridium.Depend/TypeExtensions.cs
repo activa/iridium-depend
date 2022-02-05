@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -6,8 +7,10 @@ using System.Runtime.CompilerServices;
 
 namespace Iridium.Depend
 {
-    public static class TypeAssignsbilityExtensions
+    public static class TypeExtensions
     {
+        private static readonly ConcurrentDictionary<Type, PropertyInfo[]> _injectProperties = new ConcurrentDictionary<Type, PropertyInfo[]>();
+
         public static bool IsAssignableTo(this Type type, Type targetType)
         {
             if (targetType.IsGenericTypeDefinition)
@@ -29,7 +32,7 @@ namespace Iridium.Depend
             if (givenType.IsGenericType && givenType.GetGenericTypeDefinition() == genericType)
                 return true;
 
-            Type baseType = givenType.BaseType;
+            var baseType = givenType.BaseType;
 
             if (baseType == null)
                 return false;
@@ -42,14 +45,7 @@ namespace Iridium.Depend
             if (source == null)
                 return false;
 
-            var type = source.GetType();
-
-            return type.IsAnonymousType();
-            //
-            // return type.IsGenericType
-            //        && (type.Name.StartsWith("<>", StringComparison.OrdinalIgnoreCase) || type.Name.StartsWith("VB$", StringComparison.OrdinalIgnoreCase))
-            //        && (type.Name.Contains("AnonymousType") || type.Name.Contains("AnonType"))
-            //        && type.GetCustomAttributes<CompilerGeneratedAttribute>().Any();
+            return source.GetType().IsAnonymousType();
         }
 
         public static bool IsAnonymousType(this Type type)
@@ -68,5 +64,11 @@ namespace Iridium.Depend
             return (!type.IsValueType || Nullable.GetUnderlyingType(type) != null);
         }
 
+        public static PropertyInfo[] GetInjectProperties(this Type type)
+        {
+            return _injectProperties.GetOrAdd(
+                type, 
+                t => type.GetProperties(BindingFlags.Public | BindingFlags.Instance).Where(p => p.CanWrite && p.GetCustomAttribute<InjectAttribute>() != null).ToArray());
+        }
     }
 }

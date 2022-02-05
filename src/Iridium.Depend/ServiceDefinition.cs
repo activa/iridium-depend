@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 
@@ -7,18 +8,37 @@ namespace Iridium.Depend
 {
     internal class ServiceDefinition
     {
-        public ServiceDefinition(Type registrationType, object obj = null, Func<IServiceRepository, Type, object> factoryMethod = null)
+        private List<Type> _registrationTypes = null;
+
+        public IEnumerable<Type> RegistrationTypes => _registrationTypes ?? GenerateDefaultRegistrationTypes();
+
+        public void AddRegistrationType(Type type)
         {
-            RegistrationType = registrationType;
-            Type = obj == null ? registrationType : obj.GetType();
-            SingletonObject = obj;
-            Singleton = obj != null;
-            CreatedFromObject = obj != null;
+            _registrationTypes ??= new List<Type>();
+
+            _registrationTypes.Add(type);
+        }
+
+        public readonly Type Type;
+        public ServiceLifetime Lifetime;
+        public readonly bool IsOpenGenericType;
+        public readonly ConstructorInfo[] Constructors;
+        public Func<IServiceProvider, Type, object> Factory;
+        public readonly object RegisteredObject;
+        public bool WireProperties;
+        public List<Action<object, IServiceProvider>> AfterCreateActions = new List<Action<object, IServiceProvider>>();
+        public List<Action<object, IServiceProvider>> AfterResolveActions = new List<Action<object, IServiceProvider>>();
+
+        public ServiceDefinition(Type type, object obj = null, ServiceLifetime lifetime = ServiceLifetime.Transient, Func<IServiceProvider, Type, object> factoryMethod = null)
+        {
+            RegisteredObject = obj;
+            Type = type;
+            Lifetime = lifetime;
             Factory = factoryMethod;
 
-            IsUnboundGenericType = RegistrationType.IsGenericTypeDefinition;
+            IsOpenGenericType = type.IsGenericTypeDefinition;
 
-            if (!IsUnboundGenericType)
+            if (!IsOpenGenericType)
             {
                 Constructors = (from c in Type.GetConstructors()
                     let paramCount = c.GetParameters().Length
@@ -27,96 +47,38 @@ namespace Iridium.Depend
             }
         }
 
-
-        public object GetSingletonObject(Type type)
+        private List<Type> GenerateDefaultRegistrationTypes()
         {
-            if (IsUnboundGenericType)
+            if (IsOpenGenericType)
             {
-                if (GenericSingletonObjects.TryGetValue(type, out var obj))
-                    return obj;
+                return Type.GetInterfaces().Select(_ => _.GetGenericTypeDefinition()).Append(Type).Concat(GetAllPublicBaseTypes(Type)).ToList();
             }
             else
             {
-                return SingletonObject;
+                return Type.GetInterfaces().Append(Type).Concat(GetAllPublicBaseTypes(Type)).ToList();
             }
 
-            return null;
         }
 
-        public void SetSingletonObject(Type type, object obj)
+        private static IEnumerable<Type> GetAllPublicBaseTypes(Type type)
         {
-            if (IsUnboundGenericType)
+            var baseType = type.BaseType;
+
+            while (baseType != null && baseType != typeof(object) && baseType.IsPublic)
             {
-                GenericSingletonObjects[type] = obj;
+                yield return baseType;
+
+                baseType = baseType.BaseType;
             }
-            else
-            {
-                SingletonObject = obj;
-            }
-        }
-
-        public readonly Type Type;
-        public bool CreatedFromObject;
-        public Type RegistrationType;
-        public object SingletonObject;
-        public bool Singleton;
-        public readonly bool IsUnboundGenericType;
-        public readonly ConstructorInfo[] Constructors;
-        public Func<IServiceRepository, Type, object> Factory;
-        public ConcurrentDictionary<Type, object> GenericSingletonObjects = new ConcurrentDictionary<Type, object>();
-
-        public void ClearStoredSingleton(bool dispose)
-        {
-            if (CreatedFromObject)
-                return;
-
-            if (IsUnboundGenericType)
-            {
-                if (dispose)
-                {
-                    foreach (var o in GenericSingletonObjects.Values)
-                    {
-                        if (o is IDisposable disposable)
-                            disposable.Dispose();
-                    }
-                }
-
-                GenericSingletonObjects.Clear();
-            }
-            else
-            {
-                if (dispose && SingletonObject is IDisposable disposable) 
-                    disposable.Dispose();
-
-                SingletonObject = null;
-            }
-        }
-
-        public bool IsMatch(Type type)
-        {
-            if (IsUnboundGenericType)
-            {
-                if (type.IsGenericTypeDefinition) // type is unbound as well
-                    return type == RegistrationType;
-
-                if (!type.IsConstructedGenericType)
-                {
-                    return false;
-                }
-
-                return Type.IsAssignableTo(type.GetGenericTypeDefinition());
-            }
-
-            return RegistrationType.IsAssignableTo(type);
         }
 
         public ConstructorInfo[] MatchingConstructors(Type type)
         {
-            if (!IsUnboundGenericType)
+            if (!IsOpenGenericType)
                 return Constructors;
 
             if (!type.IsConstructedGenericType)
-                return new ConstructorInfo[0];
+                return Array.Empty<ConstructorInfo>();
 
             return _matchingConstructorsCache.GetOrAdd(type, t => (from c in Type.MakeGenericType(type.GenericTypeArguments).GetConstructors()
                 let paramCount = c.GetParameters().Length
@@ -125,5 +87,6 @@ namespace Iridium.Depend
         }
 
         private readonly ConcurrentDictionary<Type, ConstructorInfo[]> _matchingConstructorsCache = new ConcurrentDictionary<Type, ConstructorInfo[]>();
+
     }
 }

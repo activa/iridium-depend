@@ -5,5 +5,8 @@ using System.Linq;
 namespace Iridium.Depend
 {
     [AttributeUsage(AttributeTargets.Property)]
-    public class InjectAttribute : Attribute { }
+    public class InjectAttribute : Attribute
+    {
+        public bool Required { get; set; }
+    }
 }

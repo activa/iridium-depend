@@ -1,57 +1,123 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 
 namespace Iridium.Depend
 {
+    internal class ServiceRegistrationResult<T,TReg> : ServiceRegistrationResult, IServiceRegistrationResult<T,TReg>
+    {
+        IServiceRegistrationResult<T, TNewReg> IServiceRegistrationResult<T, TReg>.As<TNewReg>() => As<TNewReg>();
+        IServiceRegistrationResult<T, TReg> IServiceRegistrationResult<T, TReg>.Scoped() => new ServiceRegistrationResult<T, TReg>(Scoped());
+        IServiceRegistrationResult<T, TReg> IServiceRegistrationResult<T, TReg>.Singleton() => new ServiceRegistrationResult<T, TReg>(Singleton());
+
+        public ServiceRegistrationResult(ServiceRegistrationResult r) : base(r)
+        {
+        }
+
+        public ServiceRegistrationResult(ServiceRepository repo, ServiceDefinition serviceDefinition) : base(repo, serviceDefinition)
+        {
+        }
+
+        public new ServiceRegistrationResult<T, TNewReg> As<TNewReg>()
+        {
+            return new ServiceRegistrationResult<T, TNewReg>(base.As<TNewReg>());
+        }
+
+        public IServiceRegistrationResult<T, TReg> OnCreate(Action<T, IServiceProvider> action)
+        {
+            ServiceDefinition.AfterCreateActions.Add((obj, provider) => action((T)obj, provider));
+
+            return this;
+        }
+
+        public IServiceRegistrationResult<T, TReg> OnResolve(Action<T, IServiceProvider> action)
+        {
+            ServiceDefinition.AfterResolveActions.Add((obj, provider) => action((T)obj, provider));
+
+            return this;
+        }
+    }
+
     internal class ServiceRegistrationResult : IServiceRegistrationResult
     {
-        private readonly ServiceDefinition _svc;
-        private readonly ServiceRepository _repository;
+        protected readonly ServiceDefinition ServiceDefinition;
+        protected readonly ServiceRepository Repository;
 
-        public ServiceRegistrationResult(ServiceRepository repo, ServiceDefinition svc)
+        IServiceRegistrationResult<T, T> IServiceRegistrationResult.As<T>() => As<T>();
+        IServiceRegistrationResult IServiceRegistrationResult.As(Type type) => As(type);
+        IServiceRegistrationResult IServiceRegistrationResult.Singleton() => Singleton();
+        IServiceRegistrationResult IServiceRegistrationResult.Scoped() => Scoped();
+        IServiceRegistrationResult IServiceRegistrationResult.IfNotRegistered<T>() => IfNotRegistered<T>();
+        IServiceRegistrationResult IServiceRegistrationResult.IfNotRegistered(Type type) => IfNotRegistered(type);
+
+        public IServiceRegistrationResult WireProperties()
         {
-            _repository = repo;
-            _svc = svc;
+            ServiceDefinition.WireProperties = true;
+            return this;
         }
 
-        public IServiceRegistrationResult As<T>()
+        public IServiceRegistrationResult AsSelf()
         {
-            return As(typeof(T));
-        }
+            ServiceDefinition.AddRegistrationType(ServiceDefinition.Type);
 
-        public IServiceRegistrationResult As(Type type)
-        {
-            if (!_svc.IsUnboundGenericType && !_svc.Type.IsAssignableTo(type))
-                throw new ArgumentException("Type is not compatible");
-
-            _svc.RegistrationType = type;
+            Repository.TriggerChangeEvent();
 
             return this;
         }
 
-        public IServiceRegistrationResult Singleton()
+        public ServiceRegistrationResult(ServiceRepository repo, ServiceDefinition serviceDefinition)
         {
-            _svc.Singleton = true;
+            Repository = repo;
+            ServiceDefinition = serviceDefinition;
+        }
+
+        public ServiceRegistrationResult(ServiceRegistrationResult r)
+        {
+            Repository = r.Repository;
+            ServiceDefinition = r.ServiceDefinition;
+        }
+
+        public ServiceRegistrationResult<T,T> As<T>()
+        {
+            return new ServiceRegistrationResult<T,T>(As(typeof(T)));
+        }
+
+        public ServiceRegistrationResult As(Type type)
+        {
+            ServiceDefinition.AddRegistrationType(type);
+
+            Repository.TriggerChangeEvent();
 
             return this;
         }
 
-        public IServiceRegistrationResult Replace<T>()
+        public ServiceRegistrationResult Singleton()
         {
-            _repository.RemoveConflicting(typeof(T), _svc);
+            ServiceDefinition.Lifetime = ServiceLifetime.Singleton;
 
             return this;
         }
 
-        public IServiceRegistrationResult Replace(Type type)
+        public ServiceRegistrationResult Scoped()
         {
-            _repository.RemoveConflicting(type, _svc);
+            ServiceDefinition.Lifetime = ServiceLifetime.Scoped;
 
             return this;
         }
 
-        public Type RegisteredAsType => _svc.RegistrationType;
+        public ServiceRegistrationResult IfNotRegistered<T>()
+        {
+            return IfNotRegistered(typeof(T));
+        }
+
+        public ServiceRegistrationResult IfNotRegistered(Type type)
+        {
+            if (Repository.ServiceDefinitions.SelectMany(s => s.RegistrationTypes).Any(t => t == type))
+            {
+                Repository.RemoveService(ServiceDefinition);
+            }
+
+            return this;
+        }
     }
 }

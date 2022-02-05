@@ -1,4 +1,5 @@
 #region License
+
 //=============================================================================
 // Iridium-Core - Portable .NET Productivity Library 
 //
@@ -22,20 +23,31 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 //=============================================================================
+
 #endregion
 
 using System;
 
 namespace Iridium.Depend
 {
+    public interface IServiceRegistrationResult<out T,TReg> : IServiceRegistrationResult
+    {
+        new IServiceRegistrationResult<T, TNewReg> As<TNewReg>();
+        new IServiceRegistrationResult<T,TReg> Scoped();
+        new IServiceRegistrationResult<T,TReg> Singleton();
+        IServiceRegistrationResult<T, TReg> OnCreate(Action<T, IServiceProvider> action);
+        IServiceRegistrationResult<T, TReg> OnResolve(Action<T, IServiceProvider> action);
+    }
+
     public interface IServiceRegistrationResult
     {
-        IServiceRegistrationResult As<T>();
+        IServiceRegistrationResult<T, T> As<T>();
+        IServiceRegistrationResult AsSelf();
         IServiceRegistrationResult As(Type type);
         IServiceRegistrationResult Singleton();
-        IServiceRegistrationResult Replace<T>();
-        IServiceRegistrationResult Replace(Type type);
-
-        Type RegisteredAsType { get; }
+        IServiceRegistrationResult Scoped();
+        IServiceRegistrationResult IfNotRegistered<T>();
+        IServiceRegistrationResult IfNotRegistered(Type type);
+        IServiceRegistrationResult WireProperties();
     }
 }

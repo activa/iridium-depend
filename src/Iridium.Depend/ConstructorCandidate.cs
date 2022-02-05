@@ -14,7 +14,7 @@ namespace Iridium.Depend
 
         public int MatchScore { get; }
 
-        public ConstructorCandidate(ServiceRepository repo, ConstructorInfo constructor, ConstructorParameter[] parameters)
+        public ConstructorCandidate(IServiceProvider repo, ConstructorInfo constructor, ConstructorParameter[] parameters)
         {
             _constructor = constructor;
             _constructorParameters = _constructor.GetParameters();

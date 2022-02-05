@@ -32,14 +32,14 @@ namespace Iridium.Depend.Test
             {
             }
 
-            public Service1(Model1 model)
+            public Service1(Model1 model1)
             {
             }
         }
 
         public class Service2 : IService
         {
-            public Service2(Model2 model)
+            public Service2(Model2 model2)
             {
             }
         }
@@ -54,7 +54,7 @@ namespace Iridium.Depend.Test
             {
             }
 
-            public Service3(Model3 model, Service1 svc)
+            public Service3(Model3 model3, Service1 svc1)
             {
             }
         }
@@ -84,7 +84,6 @@ namespace Iridium.Depend.Test
         }
 
         [Test]
-        [Repeat(1000)]
         public void TestMatchDerived()
         {
             ServiceRepository repo = new ServiceRepository();
@@ -93,31 +92,30 @@ namespace Iridium.Depend.Test
             repo.Register<Service2>();
             repo.Register<Service3>();
 
-            Assert.That(repo.Get<IService>(new Model1()), Is.InstanceOf<Service1>());
-            Assert.That(repo.Get<IService>(new Model2()), Is.InstanceOf<Service2>());
-            Assert.That(repo.Get<IService>(new Model3()), Is.InstanceOf<Service3>());
+            var serviceProvider = repo.CreateServiceProvider();
 
-            Assert.That(repo.Get<IService,Model1>(new Model1()), Is.InstanceOf<Service1>());
-            Assert.That(repo.Get<IService,Model2>(new Model2()), Is.InstanceOf<Service2>());
-            Assert.That(repo.Get<IService,Model3>(new Model3()), Is.InstanceOf<Service3>());
+            Assert.That(serviceProvider.Get<IService>(new Model1()), Is.InstanceOf<Service1>());
+            Assert.That(serviceProvider.Get<IService>(new Model2()), Is.InstanceOf<Service2>());
+            Assert.That(serviceProvider.Get<IService>(new Model3()), Is.InstanceOf<Service3>());
 
-            Assert.That(repo.Get<IService, Model1>(null), Is.InstanceOf<Service1>());
-            Assert.That(repo.Get<IService, Model2>(null), Is.InstanceOf<Service2>());
-            Assert.That(repo.Get<IService, Model3>(null), Is.InstanceOf<Service3>());
+            Assert.That(serviceProvider.Get<IService>(new { model1 = new Model1() }), Is.InstanceOf<Service1>());
+            Assert.That(serviceProvider.Get<IService>(new { model2 = new Model2() }), Is.InstanceOf<Service2>());
+            Assert.That(serviceProvider.Get<IService>(new { model3 = new Model3() }), Is.InstanceOf<Service3>());
+
+            Assert.That(serviceProvider.Get<IService>(new { model1 = (Model1)null }), Is.InstanceOf<Service1>());
+            Assert.That(serviceProvider.Get<IService>(new { model2 = (Model2)null }), Is.InstanceOf<Service2>());
+            Assert.That(serviceProvider.Get<IService>(new { model3 = (Model3)null }), Is.InstanceOf<Service3>());
 
             repo.Register<Service4>();
 
-            Assert.That(repo.Get<IService>(new Model1(), new Model2()), Is.InstanceOf<Service4>());
-            Assert.That(((Service4)repo.Get<IService>(new Model1(), new Model2())).M1, Is.Not.Null);
-            Assert.That(((Service4)repo.Get<IService>(new Model1(), new Model2())).M2, Is.Not.Null);
-            Assert.That(repo.Get<IService>(new Model2(), new Model1()), Is.InstanceOf<Service4>());
+            Assert.That(serviceProvider.Get<IService>(new Model1(), new Model2()), Is.InstanceOf<Service4>());
+            Assert.That(serviceProvider.Get<IService>(new Model2(), new Model1()), Is.InstanceOf<Service4>());
+            Assert.That(serviceProvider.Get<IService>(new { model1 = new Model1(), model2 = new Model2() }), Is.InstanceOf<Service4>());
+            Assert.That(serviceProvider.Get<IService>(new { model1 = (Model1)null, model2 = (Model2)null }), Is.InstanceOf<Service4>());
 
-            Assert.That(repo.Get<IService,Model1,Model2>(new Model1(), new Model2()), Is.InstanceOf<Service4>());
-            Assert.That(repo.Get<IService,Model2,Model1>(new Model2(), new Model1()), Is.InstanceOf<Service4>());
-
-            Assert.That(repo.Get<IService, Model1, Model2>(null, null), Is.InstanceOf<Service4>());
-            Assert.That(repo.Get<IService, Model2, Model1>(null, null), Is.InstanceOf<Service4>());
-
+            Assert.That(((Service4)serviceProvider.Get<IService>(new Model1(), new Model2())).M2, Is.Not.Null);
+            Assert.That(((Service4)serviceProvider.Get<IService>(new Model2(), new Model1())).M2, Is.Not.Null);
+            Assert.That(((Service4)serviceProvider.Get<IService>(new { model1 = new Model1(), model2 = new Model2() })).M1, Is.Not.Null);
         }
     }
 }
