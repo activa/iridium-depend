@@ -27,6 +27,7 @@ namespace Iridium.Depend
         public readonly bool IsOpenGenericType;
         public Func<IServiceProvider, Type, object> Factory;
         public readonly object RegisteredObject;
+        public bool SkipDispose;
         //public bool WireProperties;
         public List<Action<object, IServiceProvider>> AfterCreateActions = new List<Action<object, IServiceProvider>>();
         public List<Action<object, IServiceProvider>> AfterResolveActions = new List<Action<object, IServiceProvider>>();
@@ -38,14 +39,14 @@ namespace Iridium.Depend
             Lifetime = lifetime;
             Factory = factoryMethod;
 
+            if (obj != null)
+                SkipDispose = true;
+
             IsOpenGenericType = type.IsGenericTypeDefinition;
 
             if (!IsOpenGenericType)
             {
-                _constructors = (from c in Type.GetConstructors()
-                    // let paramCount = c.GetParameters().Length
-                    // orderby paramCount descending
-                    select c).ToArray();
+                _constructors = Type.GetConstructors().ToArray();
             }
 
             // _serviceConstructors = (from c in Type.GetConstructors()
@@ -54,13 +55,14 @@ namespace Iridium.Depend
 
         private List<Type> GenerateDefaultRegistrationTypes()
         {
+            var registrationTypes = Type.GetInterfaces().AsEnumerable();
+
             if (IsOpenGenericType)
             {
-                return Type.GetInterfaces().Select(_ => _.GetGenericTypeDefinition()).Append(Type).Concat(GetAllPublicBaseTypes(Type)).ToList();
+                registrationTypes = registrationTypes.Select(_ => _.GetGenericTypeDefinition());
             }
 
-            return Type.GetInterfaces().Append(Type).Concat(GetAllPublicBaseTypes(Type)).ToList();
-
+            return registrationTypes.Append(Type).Concat(GetAllPublicBaseTypes(Type)).ToList();
         }
 
         private static IEnumerable<Type> GetAllPublicBaseTypes(Type type)
@@ -83,10 +85,7 @@ namespace Iridium.Depend
             if (!type.IsConstructedGenericType)
                 throw new Exception("Can't create object from open generic type");
 
-            return _genericConstructorsCache.GetOrAdd(type, t => (from c in Type.MakeGenericType(type.GenericTypeArguments).GetConstructors()
-                //let paramCount = c.GetParameters().Length
-                //orderby paramCount descending
-                select c).ToArray());
+            return _genericConstructorsCache.GetOrAdd(type, t => Type.MakeGenericType(type.GenericTypeArguments).GetConstructors().ToArray());
         }
 
         //public ServiceConstructor[] ServiceConstructors => _serviceConstructors;
