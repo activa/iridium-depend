@@ -1,5 +1,4 @@
 using System;
-using System.Net.Cache;
 using NUnit.Framework;
 
 namespace Iridium.Depend.Test
@@ -72,9 +71,11 @@ namespace Iridium.Depend.Test
             {
             }
 
-            public ServiceX(IService1 svc)
+            public ServiceX(IService1 svc1)
             {
-                Svc1 = svc;
+                Assert.NotNull(svc1);
+
+                Svc1 = svc1;
             }
         }
 
@@ -82,9 +83,26 @@ namespace Iridium.Depend.Test
         {
             public IService2 Svc2;
 
-            public ServiceY(IService2 svc)
+            public ServiceY(IService2 svc2)
             {
-                Svc2 = svc;
+                Assert.NotNull(svc2);
+
+                Svc2 = svc2;
+            }
+        }
+
+        private class ServiceXY
+        {
+            public IService1 Svc1;
+            public IService2 Svc2;
+
+            public ServiceXY(IService1 svc1, IService2 svc2)
+            {
+                Assert.NotNull(svc1);
+                Assert.NotNull(svc2);
+
+                Svc1 = svc1;
+                Svc2 = svc2;
             }
         }
 
@@ -381,21 +399,6 @@ namespace Iridium.Depend.Test
         }
 
         [Test]
-        public void Create4()
-        {
-            ServiceRepository repo = new ServiceRepository();
-
-            repo.Register<Service1A>();
-
-            var serviceProvider = repo.CreateServiceProvider();
-
-            var svc4 = serviceProvider.Create<ServiceY>();
-
-            Assert.That(svc4, Is.Not.Null);
-            Assert.That(svc4.Svc2, Is.Null);
-        }
-
-        [Test]
         public void Create_Fail()
         {
             ServiceRepository repo = new ServiceRepository();
@@ -404,9 +407,7 @@ namespace Iridium.Depend.Test
 
             var serviceProvider = repo.CreateServiceProvider();
 
-            var svc3 = serviceProvider.Create<IService3>();
-
-            Assert.That(svc3, Is.Null);
+            Assert.Throws<Exception>(() => serviceProvider.Create<IService3>());
         }
 
         [Test]

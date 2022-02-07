@@ -6,8 +6,8 @@ namespace Iridium.Depend
 {
     public interface IServiceRepository
     {
-    // void UnRegister<T>();
-    // void UnRegister(Type type);
+    void UnRegister<T>();
+    void UnRegister(Type type);
     IServiceRegistrationResult<T,T> Register<T>();
     IServiceRegistrationResult Register(Type type);
     IServiceRegistrationResult Register(Type type, object obj);

@@ -32,7 +32,18 @@ namespace Iridium.Depend.Test
             private readonly Live<IService2> _svc2;
 
             public IService1 Svc1 => _svc1;
-            public IService2 Svc2 => _svc2.Value();
+            public IService2 Svc2 => _svc2?.Value();
+
+            public TargetService(Live<IService2> svc2)
+            {
+                _svc2 = svc2;
+            }
+
+            public TargetService(IService1 svc1)
+            {
+                _svc1 = svc1;
+            }
+
 
             public TargetService(IService1 svc1, Live<IService2> svc2)
             {
@@ -47,7 +58,7 @@ namespace Iridium.Depend.Test
             [Inject] public Live<IService2> _svc2 { get; set; }
 
             public IService1 Svc1 => _svc1;
-            public IService2 Svc2 => _svc2.Value();
+            public IService2 Svc2 => _svc2?.Value();
         }
 
         [Test]
@@ -156,7 +167,7 @@ namespace Iridium.Depend.Test
         {
             ServiceRepository repo = new ServiceRepository();
 
-            var obj = repo.CreateServiceProvider(true).Create<TargetService2>();
+            var obj = repo.CreateServiceProvider().Create<TargetService2>();
 
             Assert.That(obj.Svc1, Is.Null);
             Assert.That(obj.Svc2, Is.Null);
@@ -171,7 +182,7 @@ namespace Iridium.Depend.Test
 
             repo.Register(svc1);
 
-            var serviceProvider = repo.CreateServiceProvider(true);
+            var serviceProvider = repo.CreateServiceProvider();
 
             var obj = serviceProvider.Create<TargetService2>();
 
@@ -191,7 +202,7 @@ namespace Iridium.Depend.Test
             repo.Register(svc1);
             repo.Register(svc2a).As<IService2>();
 
-            var serviceProvider = repo.CreateServiceProvider(true);
+            var serviceProvider = repo.CreateServiceProvider();
 
             var obj = serviceProvider.Create<TargetService2>();
 

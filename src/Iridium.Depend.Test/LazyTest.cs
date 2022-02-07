@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
 using NUnit.Framework;
 
 namespace Iridium.Depend.Test
@@ -33,7 +32,7 @@ namespace Iridium.Depend.Test
             private readonly Lazy<IService2> _svc2;
 
             public IService1 Svc1 => _svc1;
-            public IService2 Svc2 => _svc2.Value;
+            public IService2 Svc2 => _svc2?.Value;
 
             public TargetService(IService1 svc1, Lazy<IService2> svc2)
             {
@@ -48,7 +47,7 @@ namespace Iridium.Depend.Test
             [Inject] public Lazy<IService2> _svc2 { get; set; }
 
             public IService1 Svc1 => _svc1;
-            public IService2 Svc2 => _svc2.Value;
+            public IService2 Svc2 => _svc2?.Value;
         }
 
         [Test]
@@ -103,7 +102,7 @@ namespace Iridium.Depend.Test
         {
             ServiceRepository repo = new ServiceRepository();
 
-            var serviceProvider = repo.CreateServiceProvider(true);
+            var serviceProvider = repo.CreateServiceProvider();
 
             var obj = serviceProvider.Create<TargetService2>();
 
@@ -120,7 +119,7 @@ namespace Iridium.Depend.Test
 
             repo.Register(svc1);
 
-            var serviceProvider = repo.CreateServiceProvider(true);
+            var serviceProvider = repo.CreateServiceProvider();
 
             var obj = serviceProvider.Create<TargetService2>();
 
@@ -139,44 +138,12 @@ namespace Iridium.Depend.Test
             repo.Register(svc1);
             repo.Register(svc2);
 
-            var serviceProvider = repo.CreateServiceProvider(true);
+            var serviceProvider = repo.CreateServiceProvider();
 
             var obj = serviceProvider.Create<TargetService2>();
 
             Assert.That(obj.Svc1, Is.SameAs(svc1));
             Assert.That(obj.Svc2, Is.SameAs(svc2));
-        }
-    }
-
-    [TestFixture]
-    public class ConcurrenyTests
-    {
-        private class Service1
-        {
-            public int X { get; }
-
-            public Service1(int x)
-            {
-                X = x;
-            }
-        }
-
-        [Test]
-        [Repeat(100)]
-        [Parallelizable]
-        public void Test1()
-        {
-            ServiceRepository repo = new ServiceRepository();
-
-            repo.Register<Service1>();
-
-            var serviceProvider = repo.CreateServiceProvider();
-
-            Parallel.For(0, 100, i =>
-            {
-                Assert.That(serviceProvider.Get<Service1>(i), Is.Not.Null);
-                Assert.That(serviceProvider.Get<Service1>(i).X, Is.EqualTo(i));
-            });
         }
     }
 }

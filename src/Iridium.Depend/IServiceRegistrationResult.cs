@@ -48,6 +48,5 @@ namespace Iridium.Depend
         IServiceRegistrationResult Scoped();
         IServiceRegistrationResult IfNotRegistered<T>();
         IServiceRegistrationResult IfNotRegistered(Type type);
-        IServiceRegistrationResult WireProperties();
     }
 }

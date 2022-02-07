@@ -2,8 +2,11 @@
 
 namespace Iridium.Depend
 {
-    public interface IServiceProvider
+    public interface IServiceProvider : IDisposable
     {
+        T Resolve<T>();
+        T Resolve<T>(params object[] parameters);
+        object Resolve(Type type, params object[] parameters);
         T Get<T>();
         T Get<T>(params object[] parameters);
         object Get(Type type, params object[] parameters);
@@ -13,6 +16,6 @@ namespace Iridium.Depend
         T Create<T>(params object[] parameters) where T : class;
         void UpdateDependencies(object o);
         bool CanResolve(Type type);
-        IServiceScope CreateScope();
+        IServiceProvider CreateScope();
     }
 }

@@ -10,20 +10,18 @@ namespace Iridium.Depend
         private readonly ConcurrentDictionary<Type, List<ServiceDefinition>> _serviceMap = new ConcurrentDictionary<Type, List<ServiceDefinition>>();
         private readonly ConcurrentDictionary<Type, List<ServiceDefinition>> _genericServiceMap = new ConcurrentDictionary<Type, List<ServiceDefinition>>();
 
-        public bool WireProperties { get; }
-
-        public ServiceResolver(ServiceRepository repo, bool wireProperties = false)
+        public ServiceResolver(ServiceRepository repo)
         {
             RebuildServiceMap(repo);
-
-            WireProperties = wireProperties;
 
             repo.Changed += (sender, args) => { RebuildServiceMap((ServiceRepository)sender); };
         }
 
         private void RebuildServiceMap(ServiceRepository repo)
         {
-            foreach (var svc in repo.ServiceDefinitions.Where(s => !s.IsOpenGenericType))
+            var serviceDefinitions = repo.ServiceDefinitions;
+
+            foreach (var svc in serviceDefinitions.Where(s => !s.IsOpenGenericType))
             {
                 foreach (var type in svc.RegistrationTypes)
                 {
@@ -33,7 +31,7 @@ namespace Iridium.Depend
                 }
             }
 
-            foreach (var svc in repo.ServiceDefinitions.Where(s => s.IsOpenGenericType))
+            foreach (var svc in serviceDefinitions.Where(s => s.IsOpenGenericType))
             {
                 foreach (var type in svc.RegistrationTypes)
                 {
@@ -42,20 +40,46 @@ namespace Iridium.Depend
                     list.Add(svc);
                 }
             }
+
+            // foreach (var serviceDefinition in repo.ServiceDefinitions)
+            // {
+            //     foreach (var serviceConstructor in serviceDefinition.ServiceConstructors)
+            //     {
+            //         serviceConstructor.PreResolveParameters(this);
+            //     }
+            // }
         }
 
-        public List<ServiceDefinition> Resolve(Type type)
+        public ServiceDefinition Resolve(Type type)
         {
             if (_serviceMap.TryGetValue(type, out var services))
             {
-                return services;
+                return services.Last();
             }
 
             if (type.IsGenericType)
             {
                 if (_genericServiceMap.TryGetValue(type.GetGenericTypeDefinition(), out var genericServices))
                 {
-                    return genericServices;
+                    return genericServices.Last();
+                }
+            }
+
+            return null;
+        }
+
+        public ServiceDefinition[] ResolveAll(Type type)
+        {
+            if (_serviceMap.TryGetValue(type, out var services))
+            {
+                return services.ToArray();
+            }
+
+            if (type.IsGenericType)
+            {
+                if (_genericServiceMap.TryGetValue(type.GetGenericTypeDefinition(), out var genericServices))
+                {
+                    return genericServices.ToArray();
                 }
             }
 

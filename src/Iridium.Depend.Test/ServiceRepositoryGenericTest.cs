@@ -69,8 +69,14 @@ namespace Iridium.Depend.Test
         {
         }
 
+        private class TestClass<T>
+        {
+            public TestClass(IGenericService1<T> p)
+            {
+            }
+        }
+
         [Test]
-        [Repeat(1000)]
         public void AssignableTests()
         {
             Assert.True(typeof(GenericService1Int).IsAssignableTo(typeof(IGenericService1<>)));
@@ -83,11 +89,8 @@ namespace Iridium.Depend.Test
             Assert.True(typeof(GenericService1<>).IsAssignableTo(typeof(IGenericService1<>)));
         }
 
-
-
         [Test]
-        [Repeat(1000)]
-        public void SimpleInterface()
+        public void SimpleInterfaceTransient()
         {
             ServiceRepository repo = new ServiceRepository();
 
@@ -98,9 +101,7 @@ namespace Iridium.Depend.Test
             var s1 = serviceProvider.Get<IGenericService1<int>>();
             var s2 = serviceProvider.Get<IGenericService1<int>>();
 
-            Assert.That(s1, Is.InstanceOf<GenericService1<int>>());
-            Assert.That(s2, Is.InstanceOf<GenericService1<int>>());
-            Assert.That(s1, Is.Not.SameAs(s2));
+            AssertX.AllDifferent<GenericService1<int>>(s1,s2);
 
             // repo.UnRegister(typeof(GenericService1<>));
             //
@@ -108,7 +109,7 @@ namespace Iridium.Depend.Test
         }
 
         [Test]
-        [Repeat(1000)]
+        
         public void SimpleInterface_Factory()
         {
             ServiceRepository repo = new ServiceRepository();
@@ -120,9 +121,7 @@ namespace Iridium.Depend.Test
             var s1 = serviceProvider.Get<IGenericService1<int>>();
             var s2 = serviceProvider.Get<IGenericService1<int>>();
 
-            Assert.That(s1, Is.InstanceOf<GenericService1<int>>());
-            Assert.That(s2, Is.InstanceOf<GenericService1<int>>());
-            Assert.That(s1, Is.Not.SameAs(s2));
+            AssertX.AllDifferent<GenericService1<int>>(s1,s2);
 
             // repo.UnRegister(typeof(IGenericService1<>));
             //
@@ -141,9 +140,7 @@ namespace Iridium.Depend.Test
             var s1 = serviceProvider.Get<IGenericService1<int>>();
             var s2 = serviceProvider.Get<IGenericService1<int>>();
 
-            Assert.That(s1, Is.InstanceOf<GenericService1<int>>());
-            Assert.That(s2, Is.InstanceOf<GenericService1<int>>());
-            Assert.That(s1, Is.Not.SameAs(s2));
+            AssertX.AllDifferent<GenericService1<int>>(s1,s2);
 
             // repo.UnRegister(typeof(IGenericService1<>));
             //
@@ -172,7 +169,7 @@ namespace Iridium.Depend.Test
         }
 
         [Test]
-        [Repeat(1000)]
+        
         public void SimpleInterface_Singleton_MultiType()
         {
             ServiceRepository repo = new ServiceRepository();
@@ -186,12 +183,8 @@ namespace Iridium.Depend.Test
             var s1a = serviceProvider.Get<IGenericService1<int>>();
             var s2a = serviceProvider.Get<IGenericService1<string>>();
 
-            Assert.That(s1, Is.InstanceOf<GenericService1<int>>());
-            Assert.That(s2, Is.InstanceOf<GenericService1<string>>());
-            Assert.That(s1a, Is.InstanceOf<GenericService1<int>>());
-            Assert.That(s2a, Is.InstanceOf<GenericService1<string>>());
-            Assert.That(s1, Is.SameAs(s1a));
-            Assert.That(s2, Is.SameAs(s2a));
+            AssertX.AllSame<GenericService1<int>>(s1, s1a);
+            AssertX.AllSame<GenericService1<string>>(s2, s2a);
 
             // repo.UnRegister(typeof(GenericService1<>));
             //

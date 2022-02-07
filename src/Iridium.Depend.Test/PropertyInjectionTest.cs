@@ -24,7 +24,7 @@ namespace Iridium.Depend.Test
         }
 
         [Test]
-        [Repeat(1000)]
+        
         public void Test1()
         {
             ServiceRepository repo = new ServiceRepository();
@@ -35,7 +35,7 @@ namespace Iridium.Depend.Test
             repo.Register(svc1);
             repo.Register(svc2);
 
-            var serviceProvider = repo.CreateServiceProvider(true);
+            var serviceProvider = repo.CreateServiceProvider();
 
             var svc3 = serviceProvider.Create<Service3>();
 
@@ -46,19 +46,6 @@ namespace Iridium.Depend.Test
 
             Assert.That(svc3.Svc1, Is.Null);
             Assert.That(svc3.Svc2, Is.SameAs(svc2));
-
-            serviceProvider = repo.CreateServiceProvider(false);
-
-            svc3 = serviceProvider.Create<Service3>();
-
-            Assert.That(svc3.Svc1, Is.Null);
-            Assert.That(svc3.Svc2, Is.Null);
-
-            svc3 = serviceProvider.Create<Service3>();
-
-            Assert.That(svc3.Svc1, Is.Null);
-            Assert.That(svc3.Svc2, Is.Null);
-
         }
 
     }

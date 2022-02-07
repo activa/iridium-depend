@@ -41,6 +41,7 @@ namespace Iridium.Depend
         public ServiceRepository()
         {
         }
+
         private ServiceDefinition AddService(ServiceDefinition service)
         {
             lock (_services)
@@ -59,6 +60,19 @@ namespace Iridium.Depend
                 _services.Remove(service);
 
             TriggerChangeEvent();
+        }
+
+        public void UnRegister<T>()
+        {
+            UnRegister(typeof(T));
+        }
+
+        public void UnRegister(Type type)
+        {
+            var serviceToRemove = ServiceDefinitions.FirstOrDefault(svc => svc.Type == type);
+
+            if (serviceToRemove != null)
+                RemoveService(serviceToRemove);
         }
 
         public IServiceRegistrationResult<T,T> Register<T>()
@@ -164,18 +178,24 @@ namespace Iridium.Depend
                 return _services.SelectMany(svc => svc.RegistrationTypes).ToArray();
         }
 
-        public IServiceProvider CreateServiceProvider()
+        public IServiceProvider CreateServiceProvider(bool allowMultipleSingletonCreations = true)
         {
-            return new ServiceScope(new ServiceResolver(this));
+            return new ServiceProvider(
+                new ServiceResolver(this), 
+                new ServiceScope(allowMultipleSingletonCreations: allowMultipleSingletonCreations)
+                );
         }
 
-        public IServiceProvider CreateServiceProvider(bool wireProperties)
+        internal List<ServiceDefinition> ServiceDefinitions
         {
-            return new ServiceScope(new ServiceResolver(this, wireProperties));
+            get
+            {
+                lock (_services)
+                {
+                    return new List<ServiceDefinition>(_services);
+                }
+            }
         }
-
-
-        internal IEnumerable<ServiceDefinition> ServiceDefinitions => _services;
 
         internal void TriggerChangeEvent() => Changed?.Invoke(this, EventArgs.Empty);
 

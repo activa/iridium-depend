@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
@@ -14,14 +15,17 @@ namespace Iridium.Depend
 
         public int MatchScore { get; }
 
-        public ConstructorCandidate(IServiceProvider repo, ConstructorInfo constructor, ConstructorParameter[] parameters)
+        public ConstructorCandidate(IServiceProvider serviceProvider, ConstructorInfo constructor, ConstructorParameter[] parameters)
         {
             _constructor = constructor;
             _constructorParameters = _constructor.GetParameters();
 
+            if (parameters is { Length: 0 })
+                parameters = null;
+
             var numConstructorParameters = _constructorParameters.Length;
 
-            if (numConstructorParameters < parameters.Length)
+            if (parameters != null && numConstructorParameters < parameters.Length)
             {
                 MatchScore = -1;
                 return;
@@ -32,7 +36,7 @@ namespace Iridium.Depend
 
             _parameterValues = new ConstructorParameter[numConstructorParameters];
 
-            if (parameters.Length > 0)
+            if (parameters != null)
             {
                 var namedParameters = parameters.Where(p => p.Name != null).ToDictionary(p => p.Name, p => p);
 
@@ -63,14 +67,14 @@ namespace Iridium.Depend
 
                 var parameterType = _constructorParameters[i].ParameterType;
 
-                if (repo.CanResolve(parameterType) || parameterType.IsFactoryValue())
+                if (serviceProvider.CanResolve(parameterType) || (parameterType.IsDeferredType() && serviceProvider.CanResolve(parameterType.DeferredType())))
                 {
-                   _parameterValues[i] = new ConstructorParameter(() => repo.Get(parameterType));
+                   _parameterValues[i] = new ConstructorParameter(() => serviceProvider.Resolve(parameterType));
                    resolvedServicesCount++;
                 }
             }
 
-            if (parameters.Length > 0)
+            if (parameters != null)
             {
                 var typedParameters = parameters.Where(p => p.Name == null && p.Type != null).ToList();
                 var numNullParameters = parameters.Count(p => p.Name == null && p.Type == null);
@@ -112,6 +116,9 @@ namespace Iridium.Depend
         }
 
 
+        private static ConcurrentDictionary<TypeCollection, Delegate> _constructorDelegates = new ConcurrentDictionary<TypeCollection, Delegate>();
+
+
         public object Invoke()
         {
             for (int i = 0; i < _constructorParameters.Length; i++)
@@ -122,7 +129,29 @@ namespace Iridium.Depend
                 _parameterValues[i] = new ConstructorParameter(value:null);
             }
 
+            // var typeCollection = new TypeCollection(_constructorParameters.Select(_ => _.ParameterType).Append(_constructor.DeclaringType).ToArray());
+            //
+            // var method = _constructorDelegates.GetOrAdd(typeCollection, info => CreateDelegate());
+            //
+            // return method.DynamicInvoke(_parameterValues.Select(p => p.Value).ToArray());
+
             return _constructor.Invoke(_parameterValues.Select(p => p.Value).ToArray());
+        }
+
+        private Delegate CreateDelegate()
+        {
+            var expressionParameters = _constructorParameters.Select(_ => Expression.Parameter(_.ParameterType, _.Name)).ToArray();
+
+            var method = Expression.Lambda(
+                //delegateType,
+                Expression.New(_constructor, expressionParameters),
+                expressionParameters
+                //delegateArgs.Select(Expression.Parameter)
+                //                _constructorParameters.Select(_ => Expression.Parameter(_.ParameterType))
+
+            ).Compile();
+
+            return method;
         }
     }
 }

@@ -68,7 +68,16 @@ namespace Iridium.Depend
         {
             return _injectProperties.GetOrAdd(
                 type, 
-                t => type.GetProperties(BindingFlags.Public | BindingFlags.Instance).Where(p => p.CanWrite && p.GetCustomAttribute<InjectAttribute>() != null).ToArray());
+                t =>
+                {
+                    var injectProperties = 
+                        type
+                        .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                        .Where(p => p.CanWrite && p.GetCustomAttribute<InjectAttribute>() != null)
+                        .ToArray();
+
+                    return injectProperties.Length == 0 ? null : injectProperties;
+                });
         }
     }
 }

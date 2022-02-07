@@ -50,12 +50,6 @@ namespace Iridium.Depend
         IServiceRegistrationResult IServiceRegistrationResult.IfNotRegistered<T>() => IfNotRegistered<T>();
         IServiceRegistrationResult IServiceRegistrationResult.IfNotRegistered(Type type) => IfNotRegistered(type);
 
-        public IServiceRegistrationResult WireProperties()
-        {
-            ServiceDefinition.WireProperties = true;
-            return this;
-        }
-
         public IServiceRegistrationResult AsSelf()
         {
             ServiceDefinition.AddRegistrationType(ServiceDefinition.Type);

@@ -860,7 +860,7 @@ namespace Iridium.Depend.Test
         }
 
             [Test]
-        [Repeat(1000)]
+        
         public void Test1()
         {
             var repo = new ServiceRepository();
@@ -877,7 +877,7 @@ namespace Iridium.Depend.Test
         }
 
         [Test]
-        [Repeat(1000)]
+        
         public void Test2()
         {
             var repo = new ServiceRepository();
@@ -896,7 +896,7 @@ namespace Iridium.Depend.Test
         }
 
         [Test]
-        [Repeat(1000)]
+        
         public void Test3()
         {
             var repo = new ServiceRepository();
@@ -915,7 +915,7 @@ namespace Iridium.Depend.Test
         }
 
         [Test]
-        [Repeat(1000)]
+        
         public void Test4()
         {
             var repo = new ServiceRepository();
@@ -935,7 +935,7 @@ namespace Iridium.Depend.Test
         }
 
         [Test]
-        [Repeat(1000)]
+        
         public void Test5()
         {
             var repo = new ServiceRepository();
@@ -954,7 +954,6 @@ namespace Iridium.Depend.Test
         }
 
         [Test]
-        [Repeat(1000)]
         public void Test6()
         {
             var repo = new ServiceRepository();
@@ -973,7 +972,7 @@ namespace Iridium.Depend.Test
         }
 
         [Test]
-        [Repeat(1000)]
+        
         public void Test7()
         {
             var repo = new ServiceRepository();
@@ -1037,7 +1036,7 @@ namespace Iridium.Depend.Test
         }
 
         [Test]
-        [Repeat(100)]
+        
         [TestCase(new object[] { 1 }, "int")]
         [TestCase(new object[] { 1,"x" }, "string,int")]
         [TestCase(new object[] { 1, "x", 5.0 }, "string,int,double?")]

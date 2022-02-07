@@ -8,7 +8,10 @@ namespace Iridium.Depend
 {
     internal class ServiceDefinition
     {
-        private List<Type> _registrationTypes = null;
+        private readonly ConcurrentDictionary<Type, ConstructorInfo[]> _genericConstructorsCache = new ConcurrentDictionary<Type, ConstructorInfo[]>();
+        private List<Type> _registrationTypes;
+        private readonly ConstructorInfo[] _constructors;
+        // private readonly ServiceConstructor[] _serviceConstructors;
 
         public IEnumerable<Type> RegistrationTypes => _registrationTypes ?? GenerateDefaultRegistrationTypes();
 
@@ -22,10 +25,9 @@ namespace Iridium.Depend
         public readonly Type Type;
         public ServiceLifetime Lifetime;
         public readonly bool IsOpenGenericType;
-        public readonly ConstructorInfo[] Constructors;
         public Func<IServiceProvider, Type, object> Factory;
         public readonly object RegisteredObject;
-        public bool WireProperties;
+        //public bool WireProperties;
         public List<Action<object, IServiceProvider>> AfterCreateActions = new List<Action<object, IServiceProvider>>();
         public List<Action<object, IServiceProvider>> AfterResolveActions = new List<Action<object, IServiceProvider>>();
 
@@ -40,11 +42,14 @@ namespace Iridium.Depend
 
             if (!IsOpenGenericType)
             {
-                Constructors = (from c in Type.GetConstructors()
-                    let paramCount = c.GetParameters().Length
-                    orderby paramCount descending
+                _constructors = (from c in Type.GetConstructors()
+                    // let paramCount = c.GetParameters().Length
+                    // orderby paramCount descending
                     select c).ToArray();
             }
+
+            // _serviceConstructors = (from c in Type.GetConstructors()
+            //     select new ServiceConstructor(type, c)).ToArray();
         }
 
         private List<Type> GenerateDefaultRegistrationTypes()
@@ -53,10 +58,8 @@ namespace Iridium.Depend
             {
                 return Type.GetInterfaces().Select(_ => _.GetGenericTypeDefinition()).Append(Type).Concat(GetAllPublicBaseTypes(Type)).ToList();
             }
-            else
-            {
-                return Type.GetInterfaces().Append(Type).Concat(GetAllPublicBaseTypes(Type)).ToList();
-            }
+
+            return Type.GetInterfaces().Append(Type).Concat(GetAllPublicBaseTypes(Type)).ToList();
 
         }
 
@@ -72,21 +75,20 @@ namespace Iridium.Depend
             }
         }
 
-        public ConstructorInfo[] MatchingConstructors(Type type)
+        public ConstructorInfo[] Constructors(Type type)
         {
             if (!IsOpenGenericType)
-                return Constructors;
+                return _constructors;
 
             if (!type.IsConstructedGenericType)
-                return Array.Empty<ConstructorInfo>();
+                throw new Exception("Can't create object from open generic type");
 
-            return _matchingConstructorsCache.GetOrAdd(type, t => (from c in Type.MakeGenericType(type.GenericTypeArguments).GetConstructors()
-                let paramCount = c.GetParameters().Length
-                orderby paramCount descending
+            return _genericConstructorsCache.GetOrAdd(type, t => (from c in Type.MakeGenericType(type.GenericTypeArguments).GetConstructors()
+                //let paramCount = c.GetParameters().Length
+                //orderby paramCount descending
                 select c).ToArray());
         }
 
-        private readonly ConcurrentDictionary<Type, ConstructorInfo[]> _matchingConstructorsCache = new ConcurrentDictionary<Type, ConstructorInfo[]>();
-
+        //public ServiceConstructor[] ServiceConstructors => _serviceConstructors;
     }
 }
