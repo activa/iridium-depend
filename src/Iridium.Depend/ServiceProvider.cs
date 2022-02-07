@@ -23,6 +23,8 @@ namespace Iridium.Depend
             _rootScope = rootScope;
         }
 
+        public ServiceResolver ServiceResolver => _serviceResolver;
+
         public T Resolve<T>()
         {
             return (T)_Resolve(typeof(T));
@@ -44,6 +46,9 @@ namespace Iridium.Depend
 
         private object _Resolve(Type type, ConstructorParameter[] parameters = null)
         {
+            if (parameters is { Length: 0 })
+                parameters = null;
+
             if (type.IsDeferredType())
             {
                 return CreateFactoryValue(type);
@@ -100,7 +105,7 @@ namespace Iridium.Depend
             }
             else
             {
-                obj = CallBestConstructor(serviceDefinition.Constructors(type), parameters);
+                obj = CallBestConstructor(serviceDefinition, type, parameters);
             }
 
             if (obj == null)
@@ -121,7 +126,7 @@ namespace Iridium.Depend
         {
             var serviceDefinition = _createTypeCache.GetOrAdd(type, t => new ServiceDefinition(t));
 
-            var obj = CallBestConstructor(serviceDefinition.Constructors(type), parameters);
+            var obj = CallBestConstructor(serviceDefinition, type, parameters);
 
             if (obj == null)
                 throw new Exception($"No constructors found for type {type.Name}");
@@ -156,20 +161,24 @@ namespace Iridium.Depend
             SetInjectProperties(o);
         }
 
-        private object CallBestConstructor(IEnumerable<ConstructorInfo> constructors, ConstructorParameter[] parameters)
+        private object CallBestConstructor(ServiceDefinition serviceDefinition, Type type, ConstructorParameter[] parameters)
         {
-            return BestConstructorCandidate(constructors, parameters)?.Invoke();
-        }
+            ConstructorCandidate bestConstructorCandidate;
 
-        private ConstructorCandidate BestConstructorCandidate(IEnumerable<ConstructorInfo> constructors, ConstructorParameter[] parameters)
-        {
-            var bestCandidate = constructors
-                .Select(constructor => new ConstructorCandidate(this, constructor, parameters))
-                .Where(candidate => candidate.MatchScore >= 0)
-                .OrderByDescending(c => c.MatchScore)
-                .FirstOrDefault();
+            if (parameters == null && !serviceDefinition.IsOpenGenericType && serviceDefinition.BestConstructorCandidate != null)
+            {
+                bestConstructorCandidate = serviceDefinition.BestConstructorCandidate;
+            }
+            else
+            {
+                bestConstructorCandidate = serviceDefinition.ServiceConstructors
+                    .Select(sc => new ConstructorCandidate(_serviceResolver, sc.Constructor(type), parameters))
+                    .Where(candidate => candidate.MatchScore >= 0)
+                    .OrderByDescending(c => c.MatchScore)
+                    .FirstOrDefault();
+            }
 
-            return bestCandidate;
+            return bestConstructorCandidate?.Invoke(this);
         }
 
         private void SetInjectProperties(object o, Type type = null)
@@ -230,7 +239,7 @@ namespace Iridium.Depend
 
         public IServiceProvider CreateScope()
         {
-            return new ServiceProvider(_serviceResolver, new ServiceScope(_scope), _rootScope ?? _scope);
+            return new ServiceProvider(_serviceResolver, new ServiceScope(), _rootScope ?? _scope);
         }
 
         public void Dispose()

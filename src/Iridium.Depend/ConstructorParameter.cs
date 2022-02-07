@@ -10,9 +10,15 @@ namespace Iridium.Depend
         public string Name;
         private readonly object _value;
         public Type Type;
-        private readonly Func<object> _factory;
+        private readonly Func<ServiceProvider, object> _factory;
+        //public Type ServiceType;
 
-        public ConstructorParameter(Func<object> factory)
+        // public ConstructorParameter(Type serviceType)
+        // {
+        //     ServiceType = serviceType;
+        // }
+
+        public ConstructorParameter(Func<ServiceProvider,object> factory)
         {
             _factory = factory;
         }
@@ -30,7 +36,9 @@ namespace Iridium.Depend
             Type = value?.GetType();
         }
 
-        public object Value => _factory != null ? _factory() : _value;
+        public object Value(ServiceProvider serviceProvider) => _factory != null ? _factory(serviceProvider) : _value;
+
+        
 
         internal static IEnumerable<ConstructorParameter> GenerateConstructorParameters(object[] parameters)
         {

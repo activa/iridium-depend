@@ -182,7 +182,7 @@ namespace Iridium.Depend
         {
             return new ServiceProvider(
                 new ServiceResolver(this), 
-                new ServiceScope(allowMultipleSingletonCreations: allowMultipleSingletonCreations)
+                new ServiceScope()
                 );
         }
 

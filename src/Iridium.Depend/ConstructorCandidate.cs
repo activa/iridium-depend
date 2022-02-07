@@ -15,7 +15,7 @@ namespace Iridium.Depend
 
         public int MatchScore { get; }
 
-        public ConstructorCandidate(IServiceProvider serviceProvider, ConstructorInfo constructor, ConstructorParameter[] parameters)
+        public ConstructorCandidate(ServiceResolver serviceResolver, ConstructorInfo constructor, ConstructorParameter[] parameters)
         {
             _constructor = constructor;
             _constructorParameters = _constructor.GetParameters();
@@ -67,9 +67,9 @@ namespace Iridium.Depend
 
                 var parameterType = _constructorParameters[i].ParameterType;
 
-                if (serviceProvider.CanResolve(parameterType) || (parameterType.IsDeferredType() && serviceProvider.CanResolve(parameterType.DeferredType())))
+                if (serviceResolver.CanResolve(parameterType) || (parameterType.IsDeferredType() && serviceResolver.CanResolve(parameterType.DeferredType())))
                 {
-                   _parameterValues[i] = new ConstructorParameter(() => serviceProvider.Resolve(parameterType));
+                   _parameterValues[i] = new ConstructorParameter(serviceProvider => serviceProvider.Resolve(parameterType));
                    resolvedServicesCount++;
                 }
             }
@@ -119,7 +119,7 @@ namespace Iridium.Depend
         private static ConcurrentDictionary<TypeCollection, Delegate> _constructorDelegates = new ConcurrentDictionary<TypeCollection, Delegate>();
 
 
-        public object Invoke()
+        public object Invoke(ServiceProvider serviceProvider)
         {
             for (int i = 0; i < _constructorParameters.Length; i++)
             {
@@ -135,7 +135,7 @@ namespace Iridium.Depend
             //
             // return method.DynamicInvoke(_parameterValues.Select(p => p.Value).ToArray());
 
-            return _constructor.Invoke(_parameterValues.Select(p => p.Value).ToArray());
+            return _constructor.Invoke(_parameterValues.Select(p => p.Value(serviceProvider)).ToArray());
         }
 
         private Delegate CreateDelegate()

@@ -8,12 +8,11 @@ namespace Iridium.Depend
 {
     internal class ServiceDefinition
     {
-        private readonly ConcurrentDictionary<Type, ConstructorInfo[]> _genericConstructorsCache = new ConcurrentDictionary<Type, ConstructorInfo[]>();
         private List<Type> _registrationTypes;
-        private readonly ConstructorInfo[] _constructors;
-        // private readonly ServiceConstructor[] _serviceConstructors;
+        private List<Type> _defaultRegistrationTypes;
+        private ServiceConstructor[] _serviceConstructors;
 
-        public IEnumerable<Type> RegistrationTypes => _registrationTypes ?? GenerateDefaultRegistrationTypes();
+        public IEnumerable<Type> RegistrationTypes => _registrationTypes ?? (_defaultRegistrationTypes ??= GenerateDefaultRegistrationTypes());
 
         public void AddRegistrationType(Type type)
         {
@@ -44,13 +43,7 @@ namespace Iridium.Depend
 
             IsOpenGenericType = type.IsGenericTypeDefinition;
 
-            if (!IsOpenGenericType)
-            {
-                _constructors = Type.GetConstructors().ToArray();
-            }
-
-            // _serviceConstructors = (from c in Type.GetConstructors()
-            //     select new ServiceConstructor(type, c)).ToArray();
+            _serviceConstructors = (from c in Type.GetConstructors() select new ServiceConstructor(this, c)).ToArray();
         }
 
         private List<Type> GenerateDefaultRegistrationTypes()
@@ -77,17 +70,17 @@ namespace Iridium.Depend
             }
         }
 
-        public ConstructorInfo[] Constructors(Type type)
+        public ServiceConstructor[] ServiceConstructors => _serviceConstructors;
+        public ConstructorCandidate BestConstructorCandidate => _serviceConstructors.Length > 0 ? _serviceConstructors[0].ConstructorCandidate : null;
+
+        public void PreResolve(ServiceResolver serviceResolver)
         {
-            if (!IsOpenGenericType)
-                return _constructors;
+            foreach (var serviceConstructor in _serviceConstructors)
+            {
+                serviceConstructor.PreResolve(serviceResolver);
+            }
 
-            if (!type.IsConstructedGenericType)
-                throw new Exception("Can't create object from open generic type");
-
-            return _genericConstructorsCache.GetOrAdd(type, t => Type.MakeGenericType(type.GenericTypeArguments).GetConstructors().ToArray());
+            _serviceConstructors = _serviceConstructors.OrderByDescending(sc => sc.ConstructorCandidate.MatchScore).ToArray();
         }
-
-        //public ServiceConstructor[] ServiceConstructors => _serviceConstructors;
     }
 }

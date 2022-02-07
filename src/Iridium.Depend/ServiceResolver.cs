@@ -5,16 +5,25 @@ using System.Linq;
 
 namespace Iridium.Depend
 {
-    internal class ServiceResolver
+    internal class ServiceResolver : IDisposable
     {
+        private bool _disposed;
+        private readonly ServiceRepository _serviceRepository;
         private readonly ConcurrentDictionary<Type, List<ServiceDefinition>> _serviceMap = new ConcurrentDictionary<Type, List<ServiceDefinition>>();
         private readonly ConcurrentDictionary<Type, List<ServiceDefinition>> _genericServiceMap = new ConcurrentDictionary<Type, List<ServiceDefinition>>();
 
-        public ServiceResolver(ServiceRepository repo)
+        public ServiceResolver(ServiceRepository serviceRepository)
         {
-            RebuildServiceMap(repo);
+            _serviceRepository = serviceRepository;
 
-            repo.Changed += (sender, args) => { RebuildServiceMap((ServiceRepository)sender); };
+            RebuildServiceMap(serviceRepository);
+
+            _serviceRepository.Changed += OnRepositoryChanged;
+        }
+
+        private void OnRepositoryChanged(object sender, EventArgs eventArgs)
+        {
+            RebuildServiceMap((ServiceRepository)sender);
         }
 
         private void RebuildServiceMap(ServiceRepository repo)
@@ -41,17 +50,17 @@ namespace Iridium.Depend
                 }
             }
 
-            // foreach (var serviceDefinition in repo.ServiceDefinitions)
-            // {
-            //     foreach (var serviceConstructor in serviceDefinition.ServiceConstructors)
-            //     {
-            //         serviceConstructor.PreResolveParameters(this);
-            //     }
-            // }
+            foreach (var serviceDefinition in repo.ServiceDefinitions)
+            {
+                serviceDefinition.PreResolve(this);
+            }
         }
 
         public ServiceDefinition Resolve(Type type)
         {
+            if (_disposed)
+                throw new ObjectDisposedException(nameof(ServiceResolver));
+
             if (_serviceMap.TryGetValue(type, out var services))
             {
                 return services.Last();
@@ -70,6 +79,9 @@ namespace Iridium.Depend
 
         public ServiceDefinition[] ResolveAll(Type type)
         {
+            if (_disposed)
+                throw new ObjectDisposedException(nameof(ServiceResolver));
+
             if (_serviceMap.TryGetValue(type, out var services))
             {
                 return services.ToArray();
@@ -83,11 +95,14 @@ namespace Iridium.Depend
                 }
             }
 
-            return null;
+            return Array.Empty<ServiceDefinition>();
         }
 
         public bool CanResolve(Type type)
         {
+            if (_disposed)
+                throw new ObjectDisposedException(nameof(ServiceResolver));
+
             if (_serviceMap.ContainsKey(type))
                 return true;
             
@@ -98,6 +113,12 @@ namespace Iridium.Depend
             }
 
             return false;
+        }
+
+        public void Dispose()
+        {
+            _disposed = true;
+            _serviceRepository.Changed -= OnRepositoryChanged;
         }
     }
 }

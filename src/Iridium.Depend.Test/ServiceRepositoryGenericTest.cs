@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using NUnit.Framework;
 
 namespace Iridium.Depend.Test
@@ -14,6 +15,17 @@ namespace Iridium.Depend.Test
 
         private interface IGenericService2<T>
         {
+        }
+
+        private class GenSvc<T1, T2>
+        {
+            public GenSvc()
+            {
+            }
+
+            public GenSvc(IGenericService1<T1> svc1, IGenericService1<T2> svc2)
+            {
+            }
         }
 
 
@@ -90,6 +102,35 @@ namespace Iridium.Depend.Test
         }
 
         [Test]
+        public void ___tmp()
+        {
+            var typeCon = typeof(GenSvc<int, string>);
+            var typeGen = typeof(GenSvc<,>);
+
+            var cGen = typeGen.GetConstructors();
+            var Ccon = typeCon.GetConstructors();
+
+            var paramsGen1 = cGen[0].GetParameters();
+            var paramsGen2 = cGen[1].GetParameters();
+            var paramsCon1 = Ccon[0].GetParameters();
+            var paramsCon2 = Ccon[1].GetParameters();
+
+            // var typeArg1a = params1[0].ParameterType.GenericTypeArguments;
+            // var typeArg1b = params1[1].ParameterType.GenericTypeArguments;
+            // var typeArg2a = params2[0].ParameterType.GenericTypeArguments;
+            // var typeArg2b = params2[1].ParameterType.GenericTypeArguments;
+
+            // var typeArg1 = typeof(GenSvc<,>).GenericTypeArguments[0];
+            // var typeArg2 = typeof(GenSvc<,>).GenericTypeArguments[1];
+
+
+
+            // var c1X = (ConstructorInfo)typeConstructed.Module.ResolveMethod(c1.MetadataToken, typeGeneric.GenericTypeArguments, null);
+            // var c1Y = typeConstructed.MakeGenericType(typeof(int), typeof(string)).GetConstructors().FirstOrDefault(c => c.MetadataToken == c1.MetadataToken);
+
+        }
+
+        [Test]
         public void SimpleInterfaceTransient()
         {
             ServiceRepository repo = new ServiceRepository();
@@ -97,6 +138,17 @@ namespace Iridium.Depend.Test
             repo.Register(typeof(GenericService1<>));
 
             var serviceProvider = repo.CreateServiceProvider();
+
+
+            
+            
+
+            Assert.That(serviceProvider.CanResolve(typeof(GenericService1<>)));
+            Assert.That(serviceProvider.CanResolve(typeof(IGenericService1<>)));
+            Assert.That(serviceProvider.CanResolve(typeof(GenericService1<int>)));
+            Assert.That(serviceProvider.CanResolve(typeof(IGenericService1<int>)));
+            Assert.That(serviceProvider.CanResolve(typeof(GenericService1<string>)));
+            Assert.That(serviceProvider.CanResolve(typeof(IGenericService1<string>)));
 
             var s1 = serviceProvider.Get<IGenericService1<int>>();
             var s2 = serviceProvider.Get<IGenericService1<int>>();

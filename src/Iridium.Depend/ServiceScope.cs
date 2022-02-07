@@ -7,21 +7,11 @@ namespace Iridium.Depend
 {
     internal class ServiceScope
     {
-        private bool _allowMultipleSingletonCreations = true;
-
-        // stored instances
-
         private readonly ConcurrentDictionary<ServiceDefinition, object> _instances = new ConcurrentDictionary<ServiceDefinition, object>();
         private readonly ConcurrentDictionary<(ServiceDefinition serviceDefinition, TypeCollection typeArgs), object> _genericInstances = new ConcurrentDictionary<(ServiceDefinition serviceDefinition, TypeCollection typeArgs), object>();
 
-        public ServiceScope(bool allowMultipleSingletonCreations = true)
+        public ServiceScope()
         {
-            _allowMultipleSingletonCreations = allowMultipleSingletonCreations;
-        }
-
-        public ServiceScope(ServiceScope parentScope)
-        {
-            _allowMultipleSingletonCreations = parentScope._allowMultipleSingletonCreations;
         }
 
         public object GetOrStore(ServiceDefinition service, Type type, Func<Type,ServiceDefinition,ConstructorParameter[],object> factory, ConstructorParameter[] parameters = null)
@@ -32,44 +22,30 @@ namespace Iridium.Depend
             {
                 var typeArgs = new TypeCollection(type.GetGenericArguments());
 
-                if (_allowMultipleSingletonCreations)
+                if (!_genericInstances.TryGetValue((service, typeArgs), out instance))
                 {
-                    instance = _genericInstances.GetOrAdd((service, typeArgs), svc => factory(type, svc.serviceDefinition, parameters));
-                }
-                else
-                {
-                    if (!_genericInstances.TryGetValue((service, typeArgs), out instance))
+                    lock (_genericInstances)
                     {
-                        lock (_genericInstances)
+                        if (!_genericInstances.TryGetValue((service, typeArgs), out instance))
                         {
-                            if (!_genericInstances.TryGetValue((service, typeArgs), out instance))
-                            {
-                                instance = factory(type, service, parameters);
+                            instance = factory(type, service, parameters);
 
-                                _genericInstances.TryAdd((service, typeArgs), instance);
-                            }
+                            _genericInstances.TryAdd((service, typeArgs), instance);
                         }
                     }
                 }
             }
             else
             {
-                if (_allowMultipleSingletonCreations)
+                if (!_instances.TryGetValue(service, out instance))
                 {
-                    instance = _instances.GetOrAdd(service, svc => factory(type, svc, parameters));
-                }
-                else
-                {
-                    if (!_instances.TryGetValue(service, out instance))
+                    lock (_instances)
                     {
-                        lock (_instances)
+                        if (!_instances.TryGetValue(service, out instance))
                         {
-                            if (!_instances.TryGetValue(service, out instance))
-                            {
-                                instance = factory(type, service, parameters);
+                            instance = factory(type, service, parameters);
 
-                                _instances.TryAdd(service, instance);
-                            }
+                            _instances.TryAdd(service, instance);
                         }
                     }
                 }
@@ -80,11 +56,12 @@ namespace Iridium.Depend
 
         public void Dispose()
         {
-            foreach (var disposable in _instances.Values.OfType<IDisposable>())
+            foreach (var disposable in _instances.Where(svc => !svc.Key.SkipDispose).Select(svc => svc.Value).OfType<IDisposable>())
             {
                 disposable.Dispose();
             }
-            foreach (var disposable in _genericInstances.Values.OfType<IDisposable>())
+
+            foreach (var disposable in _genericInstances.Where(svc => !svc.Key.serviceDefinition.SkipDispose).Select(svc => svc.Value).OfType<IDisposable>())
             {
                 disposable.Dispose();
             }
