@@ -184,8 +184,10 @@ namespace Iridium.Depend.Test
 
             repo.Register<Service12>().Scoped();
 
-            var scope1 = repo.CreateServiceProvider();
-            var scope2 = scope1.CreateScope();
+            var provider = repo.CreateServiceProvider();
+
+            var scope1 = provider.CreateScope();
+            var scope2 = provider.CreateScope();
 
             var i1a = scope1.Get<IService1>();
             var i1b = scope1.Get<IService1>();
@@ -213,8 +215,10 @@ namespace Iridium.Depend.Test
 
             repo.Register<Service12>().As<IService2>().Scoped();
 
-            var scope1 = repo.CreateServiceProvider();
-            var scope2 = scope1.CreateScope();
+            var provider = repo.CreateServiceProvider();
+
+            var scope1 = provider.CreateScope();
+            var scope2 = provider.CreateScope();
 
             var i1a = scope1.Get<IService1>();
             var i1b = scope1.Get<IService1>();
@@ -243,9 +247,11 @@ namespace Iridium.Depend.Test
 
             repo.Register<Service12>().AsSelf().Scoped();
 
-            var scope1 = repo.CreateServiceProvider();
-            var scope2 = scope1.CreateScope();
+            var provider = repo.CreateServiceProvider();
 
+            var scope1 = provider.CreateScope();
+            var scope2 = provider.CreateScope();
+            
             var i1a = scope1.Get<IService1>();
             var i1b = scope1.Get<IService1>();
             var i1c = scope2.Get<IService1>();
@@ -274,8 +280,10 @@ namespace Iridium.Depend.Test
 
             repo.Register<Service12>().As<IService1>().AsSelf().Scoped();
 
-            var scope1 = repo.CreateServiceProvider();
-            var scope2 = scope1.CreateScope();
+            var provider = repo.CreateServiceProvider();
+
+            var scope1 = provider.CreateScope();
+            var scope2 = provider.CreateScope();
 
             var i1a = scope1.Get<IService1>();
             var i1b = scope1.Get<IService1>();

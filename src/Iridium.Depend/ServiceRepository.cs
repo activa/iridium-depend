@@ -2,7 +2,7 @@
 //=============================================================================
 // Iridium-Depend - Portable .NET Productivity Library 
 //
-// Copyright (c) 2008-2021 Philippe Leybaert
+// Copyright (c) 2008-2022 Philippe Leybaert
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy 
 // of this software and associated documentation files (the "Software"), to deal 
@@ -30,7 +30,7 @@ using System.Linq;
 
 namespace Iridium.Depend
 {
-    public class ServiceRepository : IServiceRepository
+    public class ServiceRepository : IServiceRepository, IDisposable
     {
         public static ServiceRepository _default;
 
@@ -77,27 +77,20 @@ namespace Iridium.Depend
 
         public IServiceRegistrationResult<T,T> Register<T>()
         {
-            var serviceDefinition = AddService(new ServiceDefinition(typeof(T)));
-
-            return new ServiceRegistrationResult<T,T>(this, serviceDefinition);
+            return new ServiceRegistrationResult<T,T>(this, AddService(new ServiceDefinition(typeof(T))));
         }
 
         public IServiceRegistrationResult Register(Type type)
         {
-            var serviceDefinition = new ServiceDefinition(type);
-
-            AddService(serviceDefinition);
-
-            return new ServiceRegistrationResult(this, serviceDefinition);
+            return new ServiceRegistrationResult(this, AddService(new ServiceDefinition(type)));
         }
 
         public IServiceRegistrationResult Register(Type type, object service)
         {
-            var serviceDefinition = new ServiceDefinition(type, service);
+            if (service == null)
+                throw new ArgumentNullException(nameof(service));
 
-            AddService(serviceDefinition);
-
-            return new ServiceRegistrationResult(this, serviceDefinition);
+            return new ServiceRegistrationResult(this, AddService(new ServiceDefinition(type, service)));
         }
 
         public IServiceRegistrationResult<T,T> Register<T>(T service)
@@ -105,11 +98,7 @@ namespace Iridium.Depend
             if (service == null)
                 throw new ArgumentNullException(nameof(service));
 
-            var serviceDefinition = new ServiceDefinition(typeof(T), service);
-
-            AddService(serviceDefinition);
-
-            return new ServiceRegistrationResult<T,T>(this, serviceDefinition);
+            return new ServiceRegistrationResult<T,T>(this, AddService(new ServiceDefinition(typeof(T), service)));
         }
 
         public IServiceRegistrationResult Register(Type registrationType, Func<object> factoryMethod)
@@ -117,11 +106,7 @@ namespace Iridium.Depend
             if (factoryMethod == null)
                 throw new ArgumentNullException(nameof(factoryMethod));
 
-            var serviceDefinition = new ServiceDefinition(registrationType, factoryMethod: (repo, type) => factoryMethod());
-
-            AddService(serviceDefinition);
-
-            return new ServiceRegistrationResult(this, serviceDefinition);
+            return new ServiceRegistrationResult(this, AddService(new ServiceDefinition(registrationType, factoryMethod: (repo, type) => factoryMethod())));
         }
 
         public IServiceRegistrationResult Register(Type registrationType, Func<Type, object> factoryMethod)
@@ -129,11 +114,7 @@ namespace Iridium.Depend
             if (factoryMethod == null)
                 throw new ArgumentNullException(nameof(factoryMethod));
 
-            var serviceDefinition = new ServiceDefinition(registrationType, factoryMethod: (repo,type) => factoryMethod(type));
-
-            AddService(serviceDefinition);
-
-            return new ServiceRegistrationResult(this, serviceDefinition);
+            return new ServiceRegistrationResult(this, AddService(new ServiceDefinition(registrationType, factoryMethod: (repo,type) => factoryMethod(type))));
         }
 
         public IServiceRegistrationResult Register(Type type, Func<IServiceProvider, Type, object> factoryMethod)
@@ -141,11 +122,7 @@ namespace Iridium.Depend
             if (factoryMethod == null)
                 throw new ArgumentNullException(nameof(factoryMethod));
 
-            var serviceDefinition = new ServiceDefinition(type, factoryMethod: factoryMethod);
-
-            AddService(serviceDefinition);
-
-            return new ServiceRegistrationResult(this, serviceDefinition);
+            return new ServiceRegistrationResult(this, AddService(new ServiceDefinition(type, factoryMethod: factoryMethod)));
         }
 
         public IServiceRegistrationResult<T,T> Register<T>(Func<T> factoryMethod)
@@ -153,11 +130,7 @@ namespace Iridium.Depend
             if (factoryMethod == null)
                 throw new ArgumentNullException(nameof(factoryMethod));
 
-            var serviceDefinition = new ServiceDefinition(typeof(T), factoryMethod:(repo,type) => factoryMethod());
-
-            AddService(serviceDefinition);
-
-            return new ServiceRegistrationResult<T,T>(this, serviceDefinition);
+            return new ServiceRegistrationResult<T,T>(this, AddService(new ServiceDefinition(typeof(T), factoryMethod:(repo,type) => factoryMethod())));
         }
 
         public IServiceRegistrationResult<T,T> Register<T>(Func<IServiceProvider, T> factoryMethod)
@@ -165,11 +138,7 @@ namespace Iridium.Depend
             if (factoryMethod == null)
                 throw new ArgumentNullException(nameof(factoryMethod));
 
-            var serviceDefinition = new ServiceDefinition(typeof(T), factoryMethod: (repo,type) => factoryMethod(repo));
-
-            AddService(serviceDefinition);
-
-            return new ServiceRegistrationResult<T,T>(this, serviceDefinition);
+            return new ServiceRegistrationResult<T,T>(this, AddService(new ServiceDefinition(typeof(T), factoryMethod: (repo,type) => factoryMethod(repo))));
         }
 
         public Type[] ResolvableTypes()
@@ -178,11 +147,14 @@ namespace Iridium.Depend
                 return _services.SelectMany(svc => svc.RegistrationTypes).ToArray();
         }
 
-        public IServiceProvider CreateServiceProvider(bool allowMultipleSingletonCreations = true)
+        private readonly ServiceScope _singletonScope = new ServiceScope();
+
+        public IServiceProvider CreateServiceProvider()
         {
             return new ServiceProvider(
-                new ServiceResolver(this), 
-                new ServiceScope()
+                new ServiceResolver(this),
+                null,
+                _singletonScope
                 );
         }
 
@@ -200,5 +172,10 @@ namespace Iridium.Depend
         internal void TriggerChangeEvent() => Changed?.Invoke(this, EventArgs.Empty);
 
         internal event EventHandler Changed;
+
+        public void Dispose()
+        {
+            _singletonScope.Dispose();
+        }
     }
 }

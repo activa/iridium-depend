@@ -593,13 +593,15 @@ namespace Iridium.Depend.Test
 
             var provider = repo.CreateServiceProvider();
 
-            var svc1 = provider.Get<IService1>();
-            var svc2 = provider.Get<IService1>();
+            var scope1 = provider.CreateScope();
 
-            var scope = provider.CreateScope();
+            var svc1 = scope1.Get<IService1>();
+            var svc2 = scope1.Get<IService1>();
 
-            var svc1a = scope.Get<IService1>();
-            var svc2a = scope.Get<IService1>();
+            var scope2 = scope1.CreateScope();
+
+            var svc1a = scope2.Get<IService1>();
+            var svc2a = scope2.Get<IService1>();
 
             Assert.That(svc1, Is.InstanceOf<Service1B>());
             Assert.That(svc1a, Is.InstanceOf<Service1B>());
@@ -662,13 +664,15 @@ namespace Iridium.Depend.Test
 
             var provider = repo.CreateServiceProvider();
 
-            var svc1 = provider.Get<IService1>();
-            var svc2 = provider.Get<IService1>();
+            var scope1 = provider.CreateScope();
 
-            var scope = provider.CreateScope();
+            var svc1 = scope1.Get<IService1>();
+            var svc2 = scope1.Get<IService1>();
 
-            var svc1a = scope.Get<IService1>();
-            var svc2a = scope.Get<IService1>();
+            var scope2 = scope1.CreateScope();
+
+            var svc1a = scope2.Get<IService1>();
+            var svc2a = scope2.Get<IService1>();
 
             Assert.That(svc1, Is.InstanceOf<Service1A>());
             Assert.That(svc1a, Is.InstanceOf<Service1A>());
@@ -720,19 +724,21 @@ namespace Iridium.Depend.Test
 
             var provider = repo.CreateServiceProvider();
 
-            var svc1 = provider.Get<IService1>();
-            var svc2 = provider.Get<IService2>();
+            var scope1 = provider.CreateScope();
+
+            var svc1 = scope1.Get<IService1>();
+            var svc2 = scope1.Get<IService2>();
 
             Assert.That(svc1, Is.Not.Null);
-            Assert.That(provider.Get<IService1>(), Is.SameAs(svc1));
-            Assert.That(provider.Get<IService1>(), Is.SameAs(svc1));
+            Assert.That(scope1.Get<IService1>(), Is.SameAs(svc1));
+            Assert.That(scope1.Get<IService1>(), Is.SameAs(svc1));
 
-            var scope = provider.CreateScope();
+            var scope2 = scope1.CreateScope();
 
-            var svc1a = scope.Get<IService1>();
-            var svc1b = scope.Get<IService1>();
-            var svc2a = scope.Get<IService2>();
-            var svc2b = scope.Get<IService2>();
+            var svc1a = scope2.Get<IService1>();
+            var svc1b = scope2.Get<IService1>();
+            var svc2a = scope2.Get<IService2>();
+            var svc2b = scope2.Get<IService2>();
 
             Assert.That(svc1a, Is.Not.Null);
             Assert.That(svc1b, Is.SameAs(svc1a));
@@ -742,7 +748,7 @@ namespace Iridium.Depend.Test
             Assert.That(svc2b, Is.SameAs(svc2a));
             Assert.That(svc2a, Is.Not.SameAs(svc2));
 
-            scope.Dispose();
+            scope2.Dispose();
 
             Assert.That(svc1.Disposed, Is.False);
             Assert.That(svc2.Disposed, Is.False);

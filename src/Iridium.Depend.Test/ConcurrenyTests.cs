@@ -57,7 +57,7 @@ namespace Iridium.Depend.Test
 
             repo.Register<Service1>().Singleton();
 
-            var serviceProvider = repo.CreateServiceProvider(false);
+            var serviceProvider = repo.CreateServiceProvider();
 
             ConcurrentBag<Service1> constructedServices = new ConcurrentBag<Service1>();
 
@@ -83,7 +83,7 @@ namespace Iridium.Depend.Test
 
             repo.Register<Service1>().Scoped();
 
-            var serviceProvider = repo.CreateServiceProvider(false);
+            var serviceProvider = repo.CreateServiceProvider();
 
             var scopes = Enumerable.Range(0, _numScopes).Select(_ => new { scope = serviceProvider.CreateScope(), constructedServices = new ConcurrentBag<Service1>()}).ToArray();
             

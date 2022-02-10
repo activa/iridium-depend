@@ -1,8 +1,32 @@
-﻿using System;
-using System.Collections.Concurrent;
+﻿#region License
+//=============================================================================
+// Iridium-Depend - Portable .NET Productivity Library 
+//
+// Copyright (c) 2008-2022 Philippe Leybaert
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy 
+// of this software and associated documentation files (the "Software"), to deal 
+// in the Software without restriction, including without limitation the rights 
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell 
+// copies of the Software, and to permit persons to whom the Software is 
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in 
+// all copies or substantial portions of the Software.
+// 
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR 
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE 
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER 
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING 
+// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+// IN THE SOFTWARE.
+//=============================================================================
+#endregion
+
+using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 
 namespace Iridium.Depend
 {
@@ -10,7 +34,7 @@ namespace Iridium.Depend
     {
         private List<Type> _registrationTypes;
         private List<Type> _defaultRegistrationTypes;
-        private ServiceConstructor[] _serviceConstructors;
+        private readonly ServiceConstructor[] _serviceConstructors;
 
         public IEnumerable<Type> RegistrationTypes => _registrationTypes ?? (_defaultRegistrationTypes ??= GenerateDefaultRegistrationTypes());
 
@@ -27,9 +51,11 @@ namespace Iridium.Depend
         public Func<IServiceProvider, Type, object> Factory;
         public readonly object RegisteredObject;
         public bool SkipDispose;
-        //public bool WireProperties;
         public List<Action<object, IServiceProvider>> AfterCreateActions = new List<Action<object, IServiceProvider>>();
         public List<Action<object, IServiceProvider>> AfterResolveActions = new List<Action<object, IServiceProvider>>();
+        public ConstructorCandidate BestConstructorCandidate { get; private set; }
+
+        public ServiceConstructor[] ServiceConstructors => _serviceConstructors;
 
         public ServiceDefinition(Type type, object obj = null, ServiceLifetime lifetime = ServiceLifetime.Transient, Func<IServiceProvider, Type, object> factoryMethod = null)
         {
@@ -70,9 +96,6 @@ namespace Iridium.Depend
             }
         }
 
-        public ServiceConstructor[] ServiceConstructors => _serviceConstructors;
-        public ConstructorCandidate BestConstructorCandidate => _serviceConstructors.Length > 0 ? _serviceConstructors[0].ConstructorCandidate : null;
-
         public void PreResolve(ServiceResolver serviceResolver)
         {
             foreach (var serviceConstructor in _serviceConstructors)
@@ -80,7 +103,7 @@ namespace Iridium.Depend
                 serviceConstructor.PreResolve(serviceResolver);
             }
 
-            _serviceConstructors = _serviceConstructors.OrderByDescending(sc => sc.ConstructorCandidate.MatchScore).ToArray();
+            BestConstructorCandidate = _serviceConstructors.Select(_ => _.ConstructorCandidate).OrderByDescending(_ => _.MatchScore).FirstOrDefault();
         }
     }
 }

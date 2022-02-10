@@ -1,4 +1,30 @@
-﻿using System;
+﻿#region License
+//=============================================================================
+// Iridium-Depend - Portable .NET Productivity Library 
+//
+// Copyright (c) 2008-2022 Philippe Leybaert
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy 
+// of this software and associated documentation files (the "Software"), to deal 
+// in the Software without restriction, including without limitation the rights 
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell 
+// copies of the Software, and to permit persons to whom the Software is 
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in 
+// all copies or substantial portions of the Software.
+// 
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR 
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE 
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER 
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING 
+// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+// IN THE SOFTWARE.
+//=============================================================================
+#endregion
+
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -9,6 +35,7 @@ namespace Iridium.Depend
         IServiceRegistrationResult<T, TNewReg> IServiceRegistrationResult<T, TReg>.As<TNewReg>() => As<TNewReg>();
         IServiceRegistrationResult<T, TReg> IServiceRegistrationResult<T, TReg>.Scoped() => new ServiceRegistrationResult<T, TReg>(Scoped());
         IServiceRegistrationResult<T, TReg> IServiceRegistrationResult<T, TReg>.Singleton() => new ServiceRegistrationResult<T, TReg>(Singleton());
+        IServiceRegistrationResult<T, TReg> IServiceRegistrationResult<T, TReg>.SkipDispose() => new ServiceRegistrationResult<T, TReg>(SkipDispose());
 
         public ServiceRegistrationResult(ServiceRegistrationResult r) : base(r)
         {
@@ -47,6 +74,7 @@ namespace Iridium.Depend
         IServiceRegistrationResult IServiceRegistrationResult.As(Type type) => As(type);
         IServiceRegistrationResult IServiceRegistrationResult.Singleton() => Singleton();
         IServiceRegistrationResult IServiceRegistrationResult.Scoped() => Scoped();
+        IServiceRegistrationResult IServiceRegistrationResult.SkipDispose() => SkipDispose();
         IServiceRegistrationResult IServiceRegistrationResult.IfNotRegistered<T>() => IfNotRegistered<T>();
         IServiceRegistrationResult IServiceRegistrationResult.IfNotRegistered(Type type) => IfNotRegistered(type);
 
@@ -95,6 +123,13 @@ namespace Iridium.Depend
         public ServiceRegistrationResult Scoped()
         {
             ServiceDefinition.Lifetime = ServiceLifetime.Scoped;
+
+            return this;
+        }
+
+        public ServiceRegistrationResult SkipDispose()
+        {
+            ServiceDefinition.SkipDispose = true;
 
             return this;
         }

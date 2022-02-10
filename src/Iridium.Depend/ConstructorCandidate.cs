@@ -1,14 +1,38 @@
-﻿using System;
+﻿#region License
+//=============================================================================
+// Iridium-Depend - Portable .NET Productivity Library 
+//
+// Copyright (c) 2008-2022 Philippe Leybaert
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy 
+// of this software and associated documentation files (the "Software"), to deal 
+// in the Software without restriction, including without limitation the rights 
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell 
+// copies of the Software, and to permit persons to whom the Software is 
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in 
+// all copies or substantial portions of the Software.
+// 
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR 
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE 
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER 
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING 
+// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+// IN THE SOFTWARE.
+//=============================================================================
+#endregion
+
+using System;
 using System.Collections.Concurrent;
 using System.Linq;
-using System.Linq.Expressions;
 using System.Reflection;
 
 namespace Iridium.Depend
 {
     internal class ConstructorCandidate
     {
-        // private readonly ServiceRepository _repo;
         private readonly ConstructorInfo _constructor;
         private readonly ParameterInfo[] _constructorParameters;
         private readonly ConstructorParameter[] _parameterValues;
@@ -110,14 +134,8 @@ namespace Iridium.Depend
                 }
             }
 
-            var resolveCount = resolvedParametersCount + resolvedServicesCount;
-
-            MatchScore = 100 * (100 + resolveCount - numConstructorParameters) + numConstructorParameters;
+            MatchScore = 100 * (100 + (resolvedParametersCount + resolvedServicesCount) - numConstructorParameters) + numConstructorParameters;
         }
-
-
-        private static ConcurrentDictionary<TypeCollection, Delegate> _constructorDelegates = new ConcurrentDictionary<TypeCollection, Delegate>();
-
 
         public object Invoke(ServiceProvider serviceProvider)
         {
@@ -129,29 +147,7 @@ namespace Iridium.Depend
                 _parameterValues[i] = new ConstructorParameter(value:null);
             }
 
-            // var typeCollection = new TypeCollection(_constructorParameters.Select(_ => _.ParameterType).Append(_constructor.DeclaringType).ToArray());
-            //
-            // var method = _constructorDelegates.GetOrAdd(typeCollection, info => CreateDelegate());
-            //
-            // return method.DynamicInvoke(_parameterValues.Select(p => p.Value).ToArray());
-
             return _constructor.Invoke(_parameterValues.Select(p => p.Value(serviceProvider)).ToArray());
-        }
-
-        private Delegate CreateDelegate()
-        {
-            var expressionParameters = _constructorParameters.Select(_ => Expression.Parameter(_.ParameterType, _.Name)).ToArray();
-
-            var method = Expression.Lambda(
-                //delegateType,
-                Expression.New(_constructor, expressionParameters),
-                expressionParameters
-                //delegateArgs.Select(Expression.Parameter)
-                //                _constructorParameters.Select(_ => Expression.Parameter(_.ParameterType))
-
-            ).Compile();
-
-            return method;
         }
     }
 }

@@ -1,3 +1,4 @@
+using System;
 using NUnit.Framework;
 
 namespace Iridium.Depend.Test
@@ -67,18 +68,13 @@ namespace Iridium.Depend.Test
 
             var provider = repo.CreateServiceProvider();
 
-            var svc1 = provider.Get<IService1>();
-
-            Assert.That(svc1, Is.Not.Null);
-            Assert.That(provider.Get<IService1>(), Is.SameAs(svc1));
-            Assert.That(provider.Get<IService1>(), Is.SameAs(svc1));
+            Assert.Throws<Exception>(() => provider.Get<IService1>());
 
             var scope = provider.CreateScope();
 
             var svc1a = scope.Get<IService1>();
 
             Assert.That(svc1a, Is.Not.Null);
-            Assert.That(svc1a, Is.Not.SameAs(svc1));
             
             Assert.That(scope.Get<IService1>(), Is.SameAs(svc1a));
             Assert.That(scope.Get<IService1>(), Is.SameAs(svc1a));
@@ -106,14 +102,5 @@ namespace Iridium.Depend.Test
         }
 
 
-    }
-
-    [TestFixture]
-    public class DisposeScopeTests
-    {
-        [Test]
-        public void Test1()
-        {
-        }
     }
 }

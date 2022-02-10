@@ -1,9 +1,35 @@
-﻿using System;
+﻿#region License
+//=============================================================================
+// Iridium-Depend - Portable .NET Productivity Library 
+//
+// Copyright (c) 2008-2022 Philippe Leybaert
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy 
+// of this software and associated documentation files (the "Software"), to deal 
+// in the Software without restriction, including without limitation the rights 
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell 
+// copies of the Software, and to permit persons to whom the Software is 
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in 
+// all copies or substantial portions of the Software.
+// 
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR 
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE 
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER 
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING 
+// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+// IN THE SOFTWARE.
+//=============================================================================
+#endregion
+
+using System;
+using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
-using System.Reflection;
 
 namespace Iridium.Depend
 {
@@ -23,8 +49,6 @@ namespace Iridium.Depend
             _rootScope = rootScope;
         }
 
-        public ServiceResolver ServiceResolver => _serviceResolver;
-
         public T Resolve<T>()
         {
             return (T)_Resolve(typeof(T));
@@ -32,12 +56,12 @@ namespace Iridium.Depend
 
         public T Resolve<T>(params object[] parameters)
         {
-            return (T)_Resolve(typeof(T), ConstructorParameter.GenerateConstructorParameters(parameters).ToArray());
+            return (T)_Resolve(typeof(T), parameters is { Length: 0 } ? null : ConstructorParameter.GenerateConstructorParameters(parameters).ToArray());
         }
 
         public object Resolve(Type type, params object[] parameters)
         {
-            return _Resolve(type, parameters.Select(p => new ConstructorParameter(p)).ToArray());
+            return _Resolve(type, parameters is { Length: 0 } ? null : ConstructorParameter.GenerateConstructorParameters(parameters).ToArray());
         }
 
         public T Get<T>() => Resolve<T>();
@@ -46,10 +70,7 @@ namespace Iridium.Depend
 
         private object _Resolve(Type type, ConstructorParameter[] parameters = null)
         {
-            if (parameters is { Length: 0 })
-                parameters = null;
-
-            if (type.IsDeferredType())
+            if (type.IsDeferredType() && _serviceResolver.CanResolve(type.DeferredType()))
             {
                 return CreateFactoryValue(type);
             }
@@ -59,6 +80,11 @@ namespace Iridium.Depend
             if (service == null)
                 return default;
 
+            return _Resolve(service, type, parameters);
+        }
+
+        private object _Resolve(ServiceDefinition service, Type type, ConstructorParameter[] parameters)
+        {
             object instance;
 
             if (service.RegisteredObject != null)
@@ -72,7 +98,7 @@ namespace Iridium.Depend
                 ServiceScope scope = service.Lifetime switch
                 {
                     ServiceLifetime.Transient => null,
-                    ServiceLifetime.Scoped => _scope,
+                    ServiceLifetime.Scoped => _scope ?? throw new Exception("No active scope"),
                     ServiceLifetime.Singleton => (_rootScope ?? _scope),
                     _ => null
                 };
@@ -93,6 +119,16 @@ namespace Iridium.Depend
             }
 
             return instance;
+        }
+
+        private IEnumerable _ResolveEnumerable(Type serviceType)
+        {
+            var matchingServices = _serviceResolver.ResolveAll(serviceType);
+
+            foreach (var service in matchingServices)
+            {
+                yield return _Resolve(service, serviceType, null);
+            }
         }
 
         private object _CreateService(Type type, ServiceDefinition serviceDefinition, ConstructorParameter[] parameters = null)
@@ -143,7 +179,7 @@ namespace Iridium.Depend
 
         public object Create(Type type, params object[] parameters)
         {
-            return _Create(type, ConstructorParameter.GenerateConstructorParameters(parameters).ToArray());
+            return _Create(type, parameters is { Length: 0 } ? null : ConstructorParameter.GenerateConstructorParameters(parameters).ToArray());
         }
 
         public T Create<T>() where T : class
@@ -208,10 +244,33 @@ namespace Iridium.Depend
 
         private object CreateFactoryValue(Type type)
         {
+            object asTypedEnumerable(IEnumerable enumerable, Type toType)
+            {
+                var castMethod = typeof(Enumerable).GetMethod(nameof(Enumerable.Cast)).MakeGenericMethod(toType);
+
+                return castMethod.Invoke(null, new[] { enumerable });
+            }
+
+            var deferredType = type.DeferredType();
+
+            if (type.GetGenericTypeDefinition() == typeof(IEnumerable<>))
+            {
+                var enumerable = _ResolveEnumerable(deferredType);
+
+                return asTypedEnumerable(enumerable, deferredType);
+            }
+
+            if (type.GetGenericTypeDefinition() == typeof(IList<>))
+            {
+                var enumerable = _ResolveEnumerable(deferredType);
+
+                var listType = typeof(List<>).MakeGenericType(deferredType);
+                
+                return Activator.CreateInstance(listType, asTypedEnumerable(enumerable, deferredType));
+            }
+
             var (lazyType, factory) = _factoryTypeCache.GetOrAdd(type, t =>
             {
-                var targetType = t.GetGenericArguments()[0];
-
                 var getMethod = typeof(ServiceProvider).GetMethod(nameof(ServiceProvider.Get), new[] { typeof(Type), typeof(object[]) });
 
                 var lambda = Expression.Lambda(
@@ -219,18 +278,19 @@ namespace Iridium.Depend
                         Expression.Call(
                             Expression.Constant(this),
                             getMethod,
-                            Expression.Constant(targetType),
+                            Expression.Constant(deferredType),
                             Expression.Constant(Array.Empty<object>())
                         ),
-                        targetType
+                        deferredType
                     )
                 ).Compile();
 
-                return (type.GetGenericTypeDefinition().MakeGenericType(targetType), lambda);
+                return (type.GetGenericTypeDefinition().MakeGenericType(deferredType), lambda);
             });
 
             return Activator.CreateInstance(lazyType, factory);
         }
+
 
         public bool CanResolve(Type type)
         {

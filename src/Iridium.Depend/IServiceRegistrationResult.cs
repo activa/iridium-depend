@@ -1,9 +1,8 @@
 #region License
-
 //=============================================================================
-// Iridium-Core - Portable .NET Productivity Library 
+// Iridium-Depend - Portable .NET Productivity Library 
 //
-// Copyright (c) 2008-2017 Philippe Leybaert
+// Copyright (c) 2008-2022 Philippe Leybaert
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy 
 // of this software and associated documentation files (the "Software"), to deal 
@@ -23,7 +22,6 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 //=============================================================================
-
 #endregion
 
 using System;
@@ -35,6 +33,7 @@ namespace Iridium.Depend
         new IServiceRegistrationResult<T, TNewReg> As<TNewReg>();
         new IServiceRegistrationResult<T,TReg> Scoped();
         new IServiceRegistrationResult<T,TReg> Singleton();
+        new IServiceRegistrationResult<T, TReg> SkipDispose();
         IServiceRegistrationResult<T, TReg> OnCreate(Action<T, IServiceProvider> action);
         IServiceRegistrationResult<T, TReg> OnResolve(Action<T, IServiceProvider> action);
     }
@@ -46,6 +45,7 @@ namespace Iridium.Depend
         IServiceRegistrationResult As(Type type);
         IServiceRegistrationResult Singleton();
         IServiceRegistrationResult Scoped();
+        IServiceRegistrationResult SkipDispose();
         IServiceRegistrationResult IfNotRegistered<T>();
         IServiceRegistrationResult IfNotRegistered(Type type);
     }
