@@ -30,7 +30,7 @@ using System.Linq;
 
 namespace Iridium.Depend
 {
-    public class ServiceRepository : IServiceRepository, IDisposable
+    public partial class ServiceRepository : IServiceRepository, IDisposable
     {
         public static ServiceRepository _default;
 
@@ -69,10 +69,24 @@ namespace Iridium.Depend
 
         public void UnRegister(Type type)
         {
-            var serviceToRemove = ServiceDefinitions.FirstOrDefault(svc => svc.Type == type);
+            lock (_services)
+            {
+                var serviceToRemove = _services.FirstOrDefault(svc => svc.Type == type);
 
-            if (serviceToRemove != null)
-                RemoveService(serviceToRemove);
+                if (serviceToRemove != null)
+                    RemoveService(serviceToRemove);
+            }
+        }
+
+        public void UnRegister(object instance)
+        {
+            lock (_services)
+            {
+                var serviceToRemove = _services.FirstOrDefault(svc => object.Equals(svc.RegisteredObject, instance));
+
+                if (serviceToRemove != null)
+                    RemoveService(serviceToRemove);
+            }
         }
 
         public IServiceRegistrationResult<T,T> Register<T>()
@@ -178,4 +192,5 @@ namespace Iridium.Depend
             _singletonScope.Dispose();
         }
     }
+
 }

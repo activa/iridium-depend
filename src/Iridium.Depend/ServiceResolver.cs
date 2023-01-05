@@ -27,6 +27,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 
 namespace Iridium.Depend
@@ -37,26 +38,35 @@ namespace Iridium.Depend
         private readonly ServiceRepository _serviceRepository;
         private readonly ConcurrentDictionary<Type, List<ServiceDefinition>> _serviceMap = new ConcurrentDictionary<Type, List<ServiceDefinition>>();
         private readonly ConcurrentDictionary<Type, List<ServiceDefinition>> _genericServiceMap = new ConcurrentDictionary<Type, List<ServiceDefinition>>();
-
+        private readonly List<Func<IServiceProvider, Type, object>> _untypedFactories = new List<Func<IServiceProvider, Type, object>>();
+        
         public ServiceResolver(ServiceRepository serviceRepository)
         {
             _serviceRepository = serviceRepository;
 
-            RebuildServiceMap(serviceRepository);
+            RebuildServiceMap();
 
             _serviceRepository.Changed += OnRepositoryChanged;
         }
 
+
+        public IServiceRepository ServiceRepository => _serviceRepository;
+        public List<Func<IServiceProvider, Type, object>> UntypedFactories => _untypedFactories;
+
         private void OnRepositoryChanged(object sender, EventArgs eventArgs)
         {
-            RebuildServiceMap((ServiceRepository)sender);
+            RebuildServiceMap();
         }
 
-        private void RebuildServiceMap(ServiceRepository repo)
+        private void RebuildServiceMap()
         {
-            var serviceDefinitions = repo.ServiceDefinitions;
+            _serviceMap.Clear();
+            _genericServiceMap.Clear();
+            _untypedFactories.Clear();
 
-            foreach (var svc in serviceDefinitions.Where(s => !s.IsOpenGenericType))
+            var serviceDefinitions = _serviceRepository.ServiceDefinitions;
+
+            foreach (var svc in serviceDefinitions.Where(s => !s.IsOpenGenericType && s.Type != null))
             {
                 foreach (var type in svc.RegistrationTypes)
                 {
@@ -66,7 +76,7 @@ namespace Iridium.Depend
                 }
             }
 
-            foreach (var svc in serviceDefinitions.Where(s => s.IsOpenGenericType))
+            foreach (var svc in serviceDefinitions.Where(s => s.IsOpenGenericType && s.Type != null))
             {
                 foreach (var type in svc.RegistrationTypes)
                 {
@@ -76,7 +86,12 @@ namespace Iridium.Depend
                 }
             }
 
-            foreach (var serviceDefinition in repo.ServiceDefinitions)
+            foreach (var svc in serviceDefinitions.Where(s => s.Type == null))
+            {
+                _untypedFactories.Add(svc.Factory);
+            }
+
+            foreach (var serviceDefinition in serviceDefinitions)
             {
                 serviceDefinition.PreResolve(this);
             }
@@ -98,6 +113,19 @@ namespace Iridium.Depend
                 {
                     return genericServices.Last();
                 }
+            }
+
+            return null;
+        }
+
+        public object ResolveDynamic(Type type, IServiceProvider provider)
+        {
+            foreach (var factory in _untypedFactories)
+            {
+                var obj = factory(provider, type);
+
+                if (obj != null)
+                    return obj;
             }
 
             return null;

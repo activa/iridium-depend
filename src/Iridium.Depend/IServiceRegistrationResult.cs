@@ -46,7 +46,11 @@ namespace Iridium.Depend
         IServiceRegistrationResult Singleton();
         IServiceRegistrationResult Scoped();
         IServiceRegistrationResult SkipDispose();
+        IServiceRegistrationResult IfNotRegistered();
         IServiceRegistrationResult IfNotRegistered<T>();
         IServiceRegistrationResult IfNotRegistered(Type type);
+        IServiceRegistrationResult Replace();
+        IServiceRegistrationResult Replace<T>();
+        IServiceRegistrationResult Replace(Type type);
     }
 }

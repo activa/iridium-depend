@@ -40,21 +40,31 @@ namespace Iridium.Depend.Test
             }
         }
 
-        private class ServiceX
+        private class ServiceA
         {
             public IEnumerable<IService1> Services { get; }
 
-            public ServiceX(IEnumerable<IService1> services)
+            public ServiceA(IEnumerable<IService1> services)
             {
                 Services = services;
             }
         }
 
-        private class ServiceY
+        private class ServiceB
         {
             public IList<IService1> Services { get; }
 
-            public ServiceY(IList<IService1> services)
+            public ServiceB(IList<IService1> services)
+            {
+                Services = services;
+            }
+        }
+
+        private class ServiceC
+        {
+            public IService1[] Services { get; }
+
+            public ServiceC(IService1[] services)
             {
                 Services = services;
             }
@@ -85,7 +95,156 @@ namespace Iridium.Depend.Test
         }
 
         [Test]
+        public void TestResolveEnumerableEmpty()
+        {
+            var svc1a = new Service1();
+            var svc1b = new Service2();
+            var svc1c = new Service1();
+
+            ServiceRepository repo = new ServiceRepository();
+
+            var provider = repo.CreateServiceProvider();
+
+            var s1 = provider.Resolve<IEnumerable<IService1>>().ToArray();
+
+            Assert.That(s1.Length, Is.EqualTo(0));
+        }
+
+        [Test]
         public void TestResolveList()
+        {
+            var svc1a = new Service1();
+            var svc1b = new Service2();
+            var svc1c = new Service1();
+
+            ServiceRepository repo = new ServiceRepository();
+
+            repo.Register(svc1a);
+            repo.Register(svc1b);
+            repo.Register(svc1c);
+
+            var provider = repo.CreateServiceProvider();
+
+            var s1 = provider.Resolve<List<IService1>>();
+
+            Assert.That(s1.Count, Is.EqualTo(3));
+
+            AssertX.AllSame<Service1>(svc1a, s1[0]);
+            AssertX.AllSame<Service2>(svc1b, s1[1]);
+            AssertX.AllSame<Service1>(svc1c, s1[2]);
+        }
+
+        [Test]
+        public void TestResolveListEmpty()
+        {
+            ServiceRepository repo = new ServiceRepository();
+
+            var provider = repo.CreateServiceProvider();
+
+            var s1 = provider.Resolve<List<Service1>>();
+
+            Assert.That(s1.Count, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void TestResolveICollection()
+        {
+            var svc1a = new Service1();
+            var svc1b = new Service2();
+            var svc1c = new Service1();
+
+            ServiceRepository repo = new ServiceRepository();
+
+            repo.Register(svc1a);
+            repo.Register(svc1b);
+            repo.Register(svc1c);
+
+            var provider = repo.CreateServiceProvider();
+
+            var s1 = provider.Resolve<ICollection<IService1>>();
+
+            Assert.That(s1.Count, Is.EqualTo(3));
+
+            AssertX.AllSame<Service1>(svc1a, s1.Skip(0).First());
+            AssertX.AllSame<Service2>(svc1b, s1.Skip(1).First());
+            AssertX.AllSame<Service1>(svc1c, s1.Skip(2).First());
+        }
+
+
+        [Test]
+        public void TestResolveArray()
+        {
+            var svc1a = new Service1();
+            var svc1b = new Service2();
+            var svc1c = new Service1();
+
+            ServiceRepository repo = new ServiceRepository();
+
+            repo.Register(svc1a);
+            repo.Register(svc1b);
+            repo.Register(svc1c);
+
+            var provider = repo.CreateServiceProvider();
+
+            var s1 = provider.Resolve<IService1[]>();
+
+            Assert.That(s1.Length, Is.EqualTo(3));
+
+            AssertX.AllSame<Service1>(svc1a, s1[0]);
+            AssertX.AllSame<Service2>(svc1b, s1[1]);
+            AssertX.AllSame<Service1>(svc1c, s1[2]);
+        }
+
+        [Test]
+        public void TestResolveArrayEmpty()
+        {
+            ServiceRepository repo = new ServiceRepository();
+
+            var provider = repo.CreateServiceProvider();
+
+            var s1 = provider.Resolve<IService1[]>();
+
+            Assert.That(s1.Length, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void TestDependencyEnumerable()
+        {
+            var svc1a = new Service1();
+            var svc1b = new Service2();
+            var svc1c = new Service1();
+
+            ServiceRepository repo = new ServiceRepository();
+
+            repo.Register(svc1a);
+            repo.Register(svc1b);
+            repo.Register(svc1c);
+
+            var provider = repo.CreateServiceProvider();
+
+            var sX = provider.Create<ServiceA>();
+
+            Assert.That(sX.Services.Count(), Is.EqualTo(3));
+
+            AssertX.AllSame<Service1>(svc1a, sX.Services.Skip(0).First());
+            AssertX.AllSame<Service2>(svc1b, sX.Services.Skip(1).First());
+            AssertX.AllSame<Service1>(svc1c, sX.Services.Skip(2).First());
+        }
+
+        [Test]
+        public void TestDependencyEnumerableEmpty()
+        {
+            ServiceRepository repo = new ServiceRepository();
+
+            var provider = repo.CreateServiceProvider();
+
+            var sX = provider.Create<ServiceA>();
+
+            Assert.That(sX.Services.Count(), Is.EqualTo(0));
+        }
+
+        [Test]
+        public void TestResolveIList()
         {
             var svc1a = new Service1();
             var svc1b = new Service2();
@@ -176,6 +335,70 @@ namespace Iridium.Depend.Test
 
             Assert.That(Service1.CreateCount, Is.EqualTo(2));
             Assert.That(Service2.CreateCount, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void TestResolveCustomGenericList()
+        {
+            var svc1a = new Service1();
+            var svc1b = new Service2();
+            var svc1c = new Service1();
+
+            ServiceRepository repo = new ServiceRepository();
+
+            repo.Register(svc1a);
+            repo.Register(svc1b);
+            repo.Register(svc1c);
+
+            var provider = repo.CreateServiceProvider();
+
+            var s1 = provider.Resolve<CustomListGeneric<IService1>>();
+
+            Assert.That(s1.Count, Is.EqualTo(3));
+
+            AssertX.AllSame<Service1>(svc1a, s1[0]);
+            AssertX.AllSame<Service2>(svc1b, s1[1]);
+            AssertX.AllSame<Service1>(svc1c, s1[2]);
+        }
+
+        [Test]
+        public void TestResolveCustomList()
+        {
+            var svc1a = new Service1();
+            var svc1b = new Service2();
+            var svc1c = new Service1();
+
+            ServiceRepository repo = new ServiceRepository();
+
+            repo.Register(svc1a);
+            repo.Register(svc1b);
+            repo.Register(svc1c);
+
+            var provider = repo.CreateServiceProvider();
+
+            var s1 = provider.Resolve<CustomListService1>();
+
+            Assert.That(s1.Count, Is.EqualTo(3));
+
+            AssertX.AllSame<Service1>(svc1a, s1[0]);
+            AssertX.AllSame<Service2>(svc1b, s1[1]);
+            AssertX.AllSame<Service1>(svc1c, s1[2]);
+        }
+
+        private class CustomListGeneric<T> : List<T>
+        {
+            public CustomListGeneric(IEnumerable<T> items)
+            {
+                AddRange(items);
+            }
+        }
+
+        private class CustomListService1 : List<IService1>
+        {
+            public CustomListService1(IEnumerable<IService1> items)
+            {
+                AddRange(items);
+            }
         }
 
     }

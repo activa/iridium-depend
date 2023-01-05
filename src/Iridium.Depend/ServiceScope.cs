@@ -34,14 +34,10 @@ namespace Iridium.Depend
     {
         private bool _disposed;
 
-        private readonly ConcurrentDictionary<ServiceDefinition, object> _instances = new ConcurrentDictionary<ServiceDefinition, object>();
-        private readonly ConcurrentDictionary<(ServiceDefinition serviceDefinition, TypeCollection typeArgs), object> _genericInstances = new ConcurrentDictionary<(ServiceDefinition serviceDefinition, TypeCollection typeArgs), object>();
+        private readonly ConcurrentDictionary<ServiceDefinition, object> _serviceInstances = new();
+        private readonly ConcurrentDictionary<(ServiceDefinition serviceDefinition, TypeCollection typeArgs), object> _genericServiceInstances = new();
 
-        public ServiceScope()
-        {
-        }
-
-        public object GetOrStore(ServiceDefinition service, Type type, Func<Type,ServiceDefinition,ConstructorParameter[],object> factory, ConstructorParameter[] parameters = null)
+        public object GetOrStore(ServiceDefinition service, Type type, Func<object> factory)
         {
             if (_disposed)
                 throw new ObjectDisposedException(nameof(ServiceScope));
@@ -52,30 +48,30 @@ namespace Iridium.Depend
             {
                 var typeArgs = new TypeCollection(type.GetGenericArguments());
 
-                if (!_genericInstances.TryGetValue((service, typeArgs), out instance))
+                if (!_genericServiceInstances.TryGetValue((service, typeArgs), out instance))
                 {
-                    lock (_genericInstances)
+                    lock (_genericServiceInstances)
                     {
-                        if (!_genericInstances.TryGetValue((service, typeArgs), out instance))
+                        if (!_genericServiceInstances.TryGetValue((service, typeArgs), out instance))
                         {
-                            instance = factory(type, service, parameters);
+                            instance = factory();
 
-                            _genericInstances.TryAdd((service, typeArgs), instance);
+                            _genericServiceInstances.TryAdd((service, typeArgs), instance);
                         }
                     }
                 }
             }
             else
             {
-                if (!_instances.TryGetValue(service, out instance))
+                if (!_serviceInstances.TryGetValue(service, out instance))
                 {
-                    lock (_instances)
+                    lock (_serviceInstances)
                     {
-                        if (!_instances.TryGetValue(service, out instance))
+                        if (!_serviceInstances.TryGetValue(service, out instance))
                         {
-                            instance = factory(type, service, parameters);
+                            instance = factory();
 
-                            _instances.TryAdd(service, instance);
+                            _serviceInstances.TryAdd(service, instance);
                         }
                     }
                 }
@@ -89,18 +85,18 @@ namespace Iridium.Depend
             if (_disposed)
                 return;
 
-            foreach (var disposable in _instances.Where(svc => !svc.Key.SkipDispose).Select(svc => svc.Value).OfType<IDisposable>())
+            foreach (var disposable in _serviceInstances.Where(svc => !svc.Key.SkipDispose).Select(svc => svc.Value).OfType<IDisposable>())
             {
                 disposable.Dispose();
             }
 
-            foreach (var disposable in _genericInstances.Where(svc => !svc.Key.serviceDefinition.SkipDispose).Select(svc => svc.Value).OfType<IDisposable>())
+            foreach (var disposable in _genericServiceInstances.Where(svc => !svc.Key.serviceDefinition.SkipDispose).Select(svc => svc.Value).OfType<IDisposable>())
             {
                 disposable.Dispose();
             }
 
-            _instances.Clear();
-            _genericInstances.Clear();
+            _serviceInstances.Clear();
+            _genericServiceInstances.Clear();
 
             _disposed = true;
         }

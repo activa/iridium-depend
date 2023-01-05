@@ -7,7 +7,7 @@ using NUnit.Framework;
 namespace Iridium.Depend.Test
 {
     [TestFixture]
-    public class ConcurrenyTests
+    public class ConcurrencyTests
     {
         private class Service1
         {

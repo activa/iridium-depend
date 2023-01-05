@@ -105,5 +105,12 @@ namespace Iridium.Depend
                     return injectProperties.Length == 0 ? null : injectProperties;
                 });
         }
+
+        public static (ParameterInfo parameter, bool required)[] GetInjectParameters(ConstructorInfo constructor)
+        {
+            ParameterInfo[] parameters = constructor.GetParameters();
+
+            return parameters.Select(p => (p, p.GetCustomAttribute<InjectAttribute>() is { Required: true })).ToArray();
+        }
     }
 }

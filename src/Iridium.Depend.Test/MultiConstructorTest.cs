@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using NuGet.Frameworks;
 using NUnit.Framework;
 
 namespace Iridium.Depend.Test

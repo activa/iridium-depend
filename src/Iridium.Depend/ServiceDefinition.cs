@@ -51,8 +51,8 @@ namespace Iridium.Depend
         public Func<IServiceProvider, Type, object> Factory;
         public readonly object RegisteredObject;
         public bool SkipDispose;
-        public List<Action<object, IServiceProvider>> AfterCreateActions = new List<Action<object, IServiceProvider>>();
-        public List<Action<object, IServiceProvider>> AfterResolveActions = new List<Action<object, IServiceProvider>>();
+        public List<Action<object, IServiceProvider>> AfterCreateActions = new();
+        public List<Action<object, IServiceProvider>> AfterResolveActions = new();
         public ConstructorCandidate BestConstructorCandidate { get; private set; }
 
         public ServiceConstructor[] ServiceConstructors => _serviceConstructors;
@@ -78,7 +78,7 @@ namespace Iridium.Depend
 
             if (IsOpenGenericType)
             {
-                registrationTypes = registrationTypes.Select(_ => _.GetGenericTypeDefinition());
+                registrationTypes = registrationTypes.Select(_ => _.IsGenericType ? _.GetGenericTypeDefinition() : _);
             }
 
             return registrationTypes.Append(Type).Concat(GetAllPublicBaseTypes(Type)).ToList();

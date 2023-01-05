@@ -25,7 +25,6 @@
 #endregion
 
 using System;
-using System.Collections.Concurrent;
 using System.Linq;
 using System.Reflection;
 
@@ -91,7 +90,7 @@ namespace Iridium.Depend
 
                 var parameterType = _constructorParameters[i].ParameterType;
 
-                if (serviceResolver.CanResolve(parameterType) || (parameterType.IsDeferredType() && serviceResolver.CanResolve(parameterType.DeferredType())))
+                if (serviceResolver.CanResolve(parameterType) || parameterType.IsDeferredType())
                 {
                    _parameterValues[i] = new ConstructorParameter(serviceProvider => serviceProvider.Resolve(parameterType));
                    resolvedServicesCount++;
@@ -146,6 +145,10 @@ namespace Iridium.Depend
 
                 _parameterValues[i] = new ConstructorParameter(value:null);
             }
+
+            var values = _parameterValues.Select(p => p.Value(serviceProvider)).ToArray();
+
+            
 
             return _constructor.Invoke(_parameterValues.Select(p => p.Value(serviceProvider)).ToArray());
         }

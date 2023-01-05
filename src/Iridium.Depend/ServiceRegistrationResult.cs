@@ -27,6 +27,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 
 namespace Iridium.Depend
 {
@@ -75,8 +76,12 @@ namespace Iridium.Depend
         IServiceRegistrationResult IServiceRegistrationResult.Singleton() => Singleton();
         IServiceRegistrationResult IServiceRegistrationResult.Scoped() => Scoped();
         IServiceRegistrationResult IServiceRegistrationResult.SkipDispose() => SkipDispose();
+        IServiceRegistrationResult IServiceRegistrationResult.IfNotRegistered() => IfNotRegistered();
         IServiceRegistrationResult IServiceRegistrationResult.IfNotRegistered<T>() => IfNotRegistered<T>();
         IServiceRegistrationResult IServiceRegistrationResult.IfNotRegistered(Type type) => IfNotRegistered(type);
+        IServiceRegistrationResult IServiceRegistrationResult.Replace() => Replace();
+        IServiceRegistrationResult IServiceRegistrationResult.Replace<T>() => Replace<T>();
+        IServiceRegistrationResult IServiceRegistrationResult.Replace(Type type) => Replace(type);
 
         public IServiceRegistrationResult AsSelf()
         {
@@ -134,6 +139,16 @@ namespace Iridium.Depend
             return this;
         }
 
+        public ServiceRegistrationResult IfNotRegistered()
+        {
+            if (Repository.ServiceDefinitions.Any(svc => !ReferenceEquals(ServiceDefinition, svc) && svc.Type == ServiceDefinition.Type))
+            {
+                Repository.RemoveService(ServiceDefinition);
+            }
+
+            return this;
+        }
+
         public ServiceRegistrationResult IfNotRegistered<T>()
         {
             return IfNotRegistered(typeof(T));
@@ -141,12 +156,42 @@ namespace Iridium.Depend
 
         public ServiceRegistrationResult IfNotRegistered(Type type)
         {
-            if (Repository.ServiceDefinitions.SelectMany(s => s.RegistrationTypes).Any(t => t == type))
+            if (Repository.ServiceDefinitions.Where(svc => !ReferenceEquals(ServiceDefinition, svc)).SelectMany(s => s.RegistrationTypes).Any(t => t == type))
             {
                 Repository.RemoveService(ServiceDefinition);
             }
 
             return this;
         }
+
+        public ServiceRegistrationResult Replace()
+        {
+            var existingServices = Repository.ServiceDefinitions.Where(svc => !ReferenceEquals(ServiceDefinition, svc) && svc.Type == ServiceDefinition.Type).ToList();
+
+            foreach (var serviceDefinition in existingServices)
+            {
+                Repository.RemoveService(serviceDefinition);
+            }
+
+            return this;
+        }
+
+        public ServiceRegistrationResult Replace<T>()
+        {
+            return Replace(typeof(T));
+        }
+
+        public ServiceRegistrationResult Replace(Type type)
+        {
+            var existingServices = Repository.ServiceDefinitions.Where(svc => !ReferenceEquals(ServiceDefinition, svc) && svc.RegistrationTypes.Any(t => t == type)).ToList();
+
+            foreach (var serviceDefinition in existingServices)
+            {
+                Repository.RemoveService(serviceDefinition);
+            }
+
+            return this;
+        }
+
     }
 }

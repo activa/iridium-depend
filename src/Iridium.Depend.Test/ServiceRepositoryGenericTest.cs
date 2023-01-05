@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -81,6 +82,19 @@ namespace Iridium.Depend.Test
         {
         }
 
+        private class GenericService1A<T> : IGenericService1<T>, IEnumerable<int>
+        {
+            public IEnumerator<int> GetEnumerator()
+            {
+                return (new List<int>()).GetEnumerator();
+            }
+
+            IEnumerator IEnumerable.GetEnumerator()
+            {
+                return GetEnumerator();
+            }
+        }
+
         private class TestClass<T>
         {
             public TestClass(IGenericService1<T> p)
@@ -102,35 +116,6 @@ namespace Iridium.Depend.Test
         }
 
         [Test]
-        public void ___tmp()
-        {
-            var typeCon = typeof(GenSvc<int, string>);
-            var typeGen = typeof(GenSvc<,>);
-
-            var cGen = typeGen.GetConstructors();
-            var Ccon = typeCon.GetConstructors();
-
-            var paramsGen1 = cGen[0].GetParameters();
-            var paramsGen2 = cGen[1].GetParameters();
-            var paramsCon1 = Ccon[0].GetParameters();
-            var paramsCon2 = Ccon[1].GetParameters();
-
-            // var typeArg1a = params1[0].ParameterType.GenericTypeArguments;
-            // var typeArg1b = params1[1].ParameterType.GenericTypeArguments;
-            // var typeArg2a = params2[0].ParameterType.GenericTypeArguments;
-            // var typeArg2b = params2[1].ParameterType.GenericTypeArguments;
-
-            // var typeArg1 = typeof(GenSvc<,>).GenericTypeArguments[0];
-            // var typeArg2 = typeof(GenSvc<,>).GenericTypeArguments[1];
-
-
-
-            // var c1X = (ConstructorInfo)typeConstructed.Module.ResolveMethod(c1.MetadataToken, typeGeneric.GenericTypeArguments, null);
-            // var c1Y = typeConstructed.MakeGenericType(typeof(int), typeof(string)).GetConstructors().FirstOrDefault(c => c.MetadataToken == c1.MetadataToken);
-
-        }
-
-        [Test]
         public void SimpleInterfaceTransient()
         {
             ServiceRepository repo = new ServiceRepository();
@@ -138,10 +123,6 @@ namespace Iridium.Depend.Test
             repo.Register(typeof(GenericService1<>));
 
             var serviceProvider = repo.CreateServiceProvider();
-
-
-            
-            
 
             Assert.That(serviceProvider.CanResolve(typeof(GenericService1<>)));
             Assert.That(serviceProvider.CanResolve(typeof(IGenericService1<>)));
@@ -155,13 +136,38 @@ namespace Iridium.Depend.Test
 
             AssertX.AllDifferent<GenericService1<int>>(s1,s2);
 
-            // repo.UnRegister(typeof(GenericService1<>));
-            //
-            // Assert.Null(serviceProvider.Get<IGenericService1<int>>());
+            repo.UnRegister(typeof(GenericService1<>));
+            
+            Assert.Null(serviceProvider.Get<IGenericService1<int>>());
         }
 
         [Test]
-        
+        public void GenericClassWithMultipleInterfaces()
+        {
+            ServiceRepository repo = new ServiceRepository();
+
+            repo.Register(typeof(GenericService1A<>));
+
+            var serviceProvider = repo.CreateServiceProvider();
+
+            Assert.That(serviceProvider.CanResolve(typeof(GenericService1A<>)));
+            Assert.That(serviceProvider.CanResolve(typeof(IGenericService1<>)));
+            Assert.That(serviceProvider.CanResolve(typeof(GenericService1A<int>)));
+            Assert.That(serviceProvider.CanResolve(typeof(IGenericService1<int>)));
+            Assert.That(serviceProvider.CanResolve(typeof(GenericService1A<string>)));
+            Assert.That(serviceProvider.CanResolve(typeof(IGenericService1<string>)));
+
+            var s1 = serviceProvider.Get<IGenericService1<int>>();
+            var s2 = serviceProvider.Get<IGenericService1<int>>();
+
+            AssertX.AllDifferent<GenericService1A<int>>(s1, s2);
+
+            repo.UnRegister(typeof(GenericService1A<>));
+
+            Assert.Null(serviceProvider.Get<IGenericService1<int>>());
+        }
+
+        [Test]
         public void SimpleInterface_Factory()
         {
             ServiceRepository repo = new ServiceRepository();
@@ -175,10 +181,30 @@ namespace Iridium.Depend.Test
 
             AssertX.AllDifferent<GenericService1<int>>(s1,s2);
 
-            // repo.UnRegister(typeof(IGenericService1<>));
-            //
-            // Assert.Null(serviceProvider.Get<IGenericService1<int>>());
+            repo.UnRegister(typeof(IGenericService1<>));
+            
+            Assert.Null(serviceProvider.Get<IGenericService1<int>>());
         }
+
+        [Test]
+        public void GenericClassWithMultipleInterfaces_Factory()
+        {
+            ServiceRepository repo = new ServiceRepository();
+
+            repo.Register(typeof(IGenericService1<>), t => Activator.CreateInstance(typeof(GenericService1A<>).MakeGenericType(t.GenericTypeArguments[0])));
+
+            var serviceProvider = repo.CreateServiceProvider();
+
+            var s1 = serviceProvider.Get<IGenericService1<int>>();
+            var s2 = serviceProvider.Get<IGenericService1<int>>();
+
+            AssertX.AllDifferent<GenericService1A<int>>(s1, s2);
+
+            repo.UnRegister(typeof(IGenericService1<>));
+
+            Assert.Null(serviceProvider.Get<IGenericService1<int>>());
+        }
+
 
         [Test]
         public void SimpleInterface_Factory2()
@@ -194,9 +220,9 @@ namespace Iridium.Depend.Test
 
             AssertX.AllDifferent<GenericService1<int>>(s1,s2);
 
-            // repo.UnRegister(typeof(IGenericService1<>));
-            //
-            // Assert.Null(serviceProvider.Get<IGenericService1<int>>());
+            repo.UnRegister(typeof(IGenericService1<>));
+            
+            Assert.Null(serviceProvider.Get<IGenericService1<int>>());
         }
 
         [Test]
@@ -215,9 +241,9 @@ namespace Iridium.Depend.Test
             Assert.That(s2, Is.InstanceOf<GenericService1<int>>());
             Assert.That(s1, Is.SameAs(s2));
 
-            // repo.UnRegister(typeof(GenericService1<>));
-            //
-            // Assert.Null(serviceProvider.Get<IGenericService1<int>>());
+            repo.UnRegister(typeof(GenericService1<>));
+            
+            Assert.Null(serviceProvider.Get<IGenericService1<int>>());
         }
 
         [Test]
@@ -238,9 +264,9 @@ namespace Iridium.Depend.Test
             AssertX.AllSame<GenericService1<int>>(s1, s1a);
             AssertX.AllSame<GenericService1<string>>(s2, s2a);
 
-            // repo.UnRegister(typeof(GenericService1<>));
-            //
-            // Assert.Null(serviceProvider.Get<IGenericService1<int>>());
+            repo.UnRegister(typeof(GenericService1<>));
+            
+            Assert.Null(serviceProvider.Get<IGenericService1<int>>());
         }
 
         [Test]
@@ -301,9 +327,9 @@ namespace Iridium.Depend.Test
             Assert.That(serviceProvider.Get<GenericService1<int>>(), Is.SameAs(svc));
             Assert.That(serviceProvider.Get<GenericService1<bool>>(), Is.Null);
 
-            // repo.UnRegister<GenericService1<int>>();
-            //
-            // Assert.Null(serviceProvider.Get<GenericService1<int>>());
+            repo.UnRegister<GenericService1<int>>();
+            
+            Assert.Null(serviceProvider.Get<GenericService1<int>>());
         }
 
         [Test]
@@ -337,7 +363,6 @@ namespace Iridium.Depend.Test
             Assert.That(serviceProvider.Get<IGenericService1<int>>(), Is.InstanceOf<GenericService12A<int>>());
             Assert.That(serviceProvider.Get<IGenericService2<bool>>(), Is.InstanceOf<GenericService12B<bool>>());
         }
-
 
         [Test]
         public void Create1()
@@ -392,15 +417,15 @@ namespace Iridium.Depend.Test
             Assert.That(serviceProvider.Get(genericType1), Is.SameAs(obj1));
             Assert.That(serviceProvider.Get(genericType2), Is.SameAs(obj2));
 
-            // repo.UnRegister(genericType1);
-            //
-            // Assert.That(serviceProvider.Get(genericType1), Is.Null);
-            // Assert.That(serviceProvider.Get(genericType2), Is.SameAs(obj2));
-            //
-            // repo.UnRegister(genericType2);
-            //
-            // Assert.That(serviceProvider.Get(genericType1), Is.Null);
-            // Assert.That(serviceProvider.Get(genericType2), Is.Null);
+            repo.UnRegister(obj1);
+            
+            Assert.That(serviceProvider.Get(genericType1), Is.Null);
+            Assert.That(serviceProvider.Get(genericType2), Is.SameAs(obj2));
+            
+            repo.UnRegister(obj2);
+            
+            Assert.That(serviceProvider.Get(genericType1), Is.Null);
+            Assert.That(serviceProvider.Get(genericType2), Is.Null);
         }
 
     }

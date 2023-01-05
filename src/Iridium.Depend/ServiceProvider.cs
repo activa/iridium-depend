@@ -70,15 +70,20 @@ namespace Iridium.Depend
 
         private object _Resolve(Type type, ConstructorParameter[] parameters = null)
         {
-            if (type.IsDeferredType() && _serviceResolver.CanResolve(type.DeferredType()))
+            if (type.IsDeferredType())
             {
-                return CreateFactoryValue(type);
+                return CreateDeferredValue(type);
             }
 
             var service = _serviceResolver.Resolve(type);
 
             if (service == null)
-                return default;
+            {
+                var obj = _serviceResolver.ResolveDynamic(type, this);
+
+                if (obj == null)
+                    return null;
+            }
 
             return _Resolve(service, type, parameters);
         }
@@ -95,7 +100,7 @@ namespace Iridium.Depend
             }
             else
             {
-                ServiceScope scope = service.Lifetime switch
+                var scope = service.Lifetime switch
                 {
                     ServiceLifetime.Transient => null,
                     ServiceLifetime.Scoped => _scope ?? throw new Exception("No active scope"),
@@ -109,7 +114,7 @@ namespace Iridium.Depend
                 }
                 else
                 {
-                    instance = scope.GetOrStore(service, type, _CreateService, parameters);
+                    instance = scope.GetOrStore(service, type, () => _CreateService(type,service,parameters));
                 }
             }
 
@@ -235,39 +240,23 @@ namespace Iridium.Depend
                 {
                     property.SetValue(o, Get(property.PropertyType));
                 }
-                else if (property.PropertyType.IsDeferredType() && _serviceResolver.CanResolve(property.PropertyType.DeferredType()))
+                else if (property.PropertyType.IsDeferredType())
                 {
-                    property.SetValue(o, CreateFactoryValue(property.PropertyType));
+                    property.SetValue(o, CreateDeferredValue(property.PropertyType));
                 }
             }
         }
 
-        private object CreateFactoryValue(Type type)
+        private object CreateDeferredValue(Type type)
         {
-            object asTypedEnumerable(IEnumerable enumerable, Type toType)
+            if (type.IsDeferredListType(out var itemType))
             {
-                var castMethod = typeof(Enumerable).GetMethod(nameof(Enumerable.Cast)).MakeGenericMethod(toType);
+                var objects = _ResolveEnumerable(itemType);
 
-                return castMethod.Invoke(null, new[] { enumerable });
+                return type.CreateDeferredList(objects);
             }
 
             var deferredType = type.DeferredType();
-
-            if (type.GetGenericTypeDefinition() == typeof(IEnumerable<>))
-            {
-                var enumerable = _ResolveEnumerable(deferredType);
-
-                return asTypedEnumerable(enumerable, deferredType);
-            }
-
-            if (type.GetGenericTypeDefinition() == typeof(IList<>))
-            {
-                var enumerable = _ResolveEnumerable(deferredType);
-
-                var listType = typeof(List<>).MakeGenericType(deferredType);
-                
-                return Activator.CreateInstance(listType, asTypedEnumerable(enumerable, deferredType));
-            }
 
             var (lazyType, factory) = _factoryTypeCache.GetOrAdd(type, t =>
             {

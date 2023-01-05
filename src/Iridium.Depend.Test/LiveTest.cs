@@ -109,6 +109,28 @@ namespace Iridium.Depend.Test
         }
 
         [Test]
+        public void TestLiveResolvingLate()
+        {
+            var svc1 = new Service1();
+            var svc2 = new Service2();
+
+            ServiceRepository repo = new ServiceRepository();
+
+            var serviceProvider = repo.CreateServiceProvider();
+
+            var obj = serviceProvider.Create<TargetService>();
+
+            Assert.That(obj.Svc1, Is.Null);
+            Assert.That(obj.Svc2, Is.Null);
+
+            repo.Register(svc1);
+            repo.Register(svc2);
+
+            Assert.That(obj.Svc1, Is.Null);
+            Assert.That(obj.Svc2, Is.SameAs(svc2));
+        }
+
+        [Test]
         public void TestLiveRealtime()
         {
             var svc1 = new Service1();
