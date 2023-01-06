@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFrameworks>netstandard2.0;netstandard2.1;net6.0;net7.0</TargetFrameworks>
+		<LangVersion>9.0</LangVersion>
+		<Version>3.0.3.1062</Version>
+		<Authors>Philippe Leybaert</Authors>
+		<PackageTags>iridium;dependency injection;ioc;di</PackageTags>
+		<RepositoryUrl>https://github.com/activa/iridium-depend</RepositoryUrl>
+		<PackageIcon>icon.png</PackageIcon>
+		<Description>Iridium.Depend extensions for Microsoft DI</Description>
+		<PackageId>iridium.depend.extensions</PackageId>
+		<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+		<PackageLicenseExpression>MIT</PackageLicenseExpression>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<None Include="..\icon.png">
+			<Pack>True</Pack>
+			<PackagePath>\</PackagePath>
+		</None>
+	</ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="7.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Iridium.Depend\Iridium.Depend.csproj" />
+  </ItemGroup>
+
+</Project>

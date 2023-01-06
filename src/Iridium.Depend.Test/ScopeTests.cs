@@ -60,7 +60,7 @@ namespace Iridium.Depend.Test
         }
 
         [Test]
-        public void TestScoped()
+        public void TestScopedWithoutChildScope()
         {
             ServiceRepository repo = new ServiceRepository();
 
@@ -68,17 +68,42 @@ namespace Iridium.Depend.Test
 
             var provider = repo.CreateServiceProvider();
 
-            Assert.Throws<Exception>(() => provider.Get<IService1>());
+            var svc1a = provider.Get<IService1>();
+
+            Assert.That(svc1a, Is.Not.Null);
+
+            Assert.That(provider.Get<IService1>(), Is.SameAs(svc1a));
+            Assert.That(provider.Get<IService1>(), Is.SameAs(svc1a));
+        }
+
+        [Test]
+        public void TestScopedOnRootAndChildScope()
+        {
+            ServiceRepository repo = new ServiceRepository();
+
+            repo.Register<Service1A>().As<IService1>().Scoped();
+
+            var provider = repo.CreateServiceProvider();
+
+            var svc1a = provider.Get<IService1>();
+
+            Assert.That(svc1a, Is.Not.Null);
+
+            Assert.That(provider.Get<IService1>(), Is.SameAs(svc1a));
+            Assert.That(provider.Get<IService1>(), Is.SameAs(svc1a));
 
             var scope = provider.CreateScope();
 
-            var svc1a = scope.Get<IService1>();
+            var svc1b = scope.Get<IService1>();
 
-            Assert.That(svc1a, Is.Not.Null);
-            
-            Assert.That(scope.Get<IService1>(), Is.SameAs(svc1a));
-            Assert.That(scope.Get<IService1>(), Is.SameAs(svc1a));
+            Assert.That(svc1b, Is.Not.Null);
+
+            Assert.That(scope.Get<IService1>(), Is.SameAs(svc1b));
+            Assert.That(scope.Get<IService1>(), Is.SameAs(svc1b));
+            Assert.That(svc1a, Is.Not.SameAs(svc1b));
+
         }
+
 
         [Test]
         public void TestRegisteredSingleton()

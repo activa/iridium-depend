@@ -1,11 +1,18 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 16
-VisualStudioVersion = 16.0.30907.101
+# Visual Studio Version 17
+VisualStudioVersion = 17.4.33205.214
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Iridium.Depend", "Iridium.Depend\Iridium.Depend.csproj", "{0D0672B9-5A52-491E-84FB-9722881092CD}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Iridium.Depend.Test", "Iridium.Depend.Test\Iridium.Depend.Test.csproj", "{A3E2838D-8C8A-4D2B-9E7F-BF7C617BC852}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Iridium.Depend.Test", "Iridium.Depend.Test\Iridium.Depend.Test.csproj", "{A3E2838D-8C8A-4D2B-9E7F-BF7C617BC852}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Iridium.Depend.Extensions", "Iridium.Depend.Extensions\Iridium.Depend.Extensions.csproj", "{DD2A9CCC-0A4B-493D-9D02-52E92883F755}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Assets", "Assets", "{E1280FAE-9F90-41D5-ABA3-670F689B918E}"
+	ProjectSection(SolutionItems) = preProject
+		icon.png = icon.png
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,6 +28,10 @@ Global
 		{A3E2838D-8C8A-4D2B-9E7F-BF7C617BC852}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A3E2838D-8C8A-4D2B-9E7F-BF7C617BC852}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A3E2838D-8C8A-4D2B-9E7F-BF7C617BC852}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DD2A9CCC-0A4B-493D-9D02-52E92883F755}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DD2A9CCC-0A4B-493D-9D02-52E92883F755}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DD2A9CCC-0A4B-493D-9D02-52E92883F755}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DD2A9CCC-0A4B-493D-9D02-52E92883F755}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -146,10 +146,6 @@ namespace Iridium.Depend
                 _parameterValues[i] = new ConstructorParameter(value:null);
             }
 
-            var values = _parameterValues.Select(p => p.Value(serviceProvider)).ToArray();
-
-            
-
             return _constructor.Invoke(_parameterValues.Select(p => p.Value(serviceProvider)).ToArray());
         }
     }

@@ -104,7 +104,7 @@ namespace Iridium.Depend
                 {
                     ServiceLifetime.Transient => null,
                     ServiceLifetime.Scoped => _scope ?? throw new Exception("No active scope"),
-                    ServiceLifetime.Singleton => (_rootScope ?? _scope),
+                    ServiceLifetime.Singleton => (_rootScope ?? _scope) ?? throw new Exception("No active scope"),
                     _ => null
                 };
 
@@ -288,7 +288,7 @@ namespace Iridium.Depend
 
         public IServiceProvider CreateScope()
         {
-            return new ServiceProvider(_serviceResolver, new ServiceScope(), _rootScope ?? _scope);
+            return new ServiceProvider(_serviceResolver, new ServiceScope(), _rootScope);
         }
 
         public void Dispose()

@@ -2,7 +2,7 @@
 <package>
     <metadata>
         <id>iridium.depend</id>
-        <version>3.0.2.1031</version>
+        <version>3.0.3.1061</version>
         <authors>Philippe Leybaert</authors>
         <owners>Philippe Leybaert</owners>
         <license type="expression">MIT</license>

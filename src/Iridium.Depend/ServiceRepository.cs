@@ -167,7 +167,7 @@ namespace Iridium.Depend
         {
             return new ServiceProvider(
                 new ServiceResolver(this),
-                null,
+                new ServiceScope(),
                 _singletonScope
                 );
         }
