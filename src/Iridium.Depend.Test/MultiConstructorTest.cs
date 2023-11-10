@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace Iridium.Depend.Test
 {
@@ -56,6 +57,16 @@ namespace Iridium.Depend.Test
             {
                 ConstructorCalled = "(int)";
                 X = x;
+            }
+
+            public ServiceA([Parameter] List<string> stringList)
+            {
+                ConstructorCalled = "(List<string>)";
+            }
+
+            public ServiceA([Parameter] List<TimeZone> tzList)
+            {
+                ConstructorCalled = "(List<TimeZone>)";
             }
 
             public ServiceA(string text, int x)
@@ -989,6 +1000,35 @@ namespace Iridium.Depend.Test
             Assert.That(svc.Svc2, Is.Not.Null);
             Assert.That(svc.Text, Is.EqualTo("X"));
         }
+
+        [Test]
+        public void Test8()
+        {
+            var repo = new ServiceRepository();
+
+            // repo.Register(new Service1());
+            // repo.Register(new Service2());
+
+            var serviceProvider = repo.CreateServiceProvider();
+
+            var svc = serviceProvider.Create<ServiceA>(new List<string> {  "A","B"});
+
+            Assert.That(svc, Is.Not.Null);
+            Assert.That(svc.ConstructorCalled, Is.EqualTo("(List<string>)"));
+
+            svc = serviceProvider.Create<ServiceA>(new object[] {new List<string> { "A", "B" }});
+
+            Assert.That(svc, Is.Not.Null);
+            Assert.That(svc.ConstructorCalled, Is.EqualTo("(List<string>)"));
+
+            svc = serviceProvider.Create<ServiceA>(new object[] { new List<TimeZone> { TimeZone.CurrentTimeZone } });
+
+            Assert.That(svc, Is.Not.Null);
+            Assert.That(svc.ConstructorCalled, Is.EqualTo("(List<TimeZone>)"));
+
+        }
+
+
 
         [Test]
         public void TestNamedParameters1()

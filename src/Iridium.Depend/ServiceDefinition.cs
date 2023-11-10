@@ -26,10 +26,12 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 
 namespace Iridium.Depend
 {
+    [DebuggerDisplay("{ToString()}")]
     internal class ServiceDefinition
     {
         private List<Type> _registrationTypes;
@@ -105,5 +107,19 @@ namespace Iridium.Depend
 
             BestConstructorCandidate = _serviceConstructors.Select(_ => _.ConstructorCandidate).OrderByDescending(_ => _.MatchScore).FirstOrDefault();
         }
+
+#if DEBUG
+        public override string ToString()
+        {
+            if (RegistrationTypes == null && Type != null)
+                return $"[{Type.Name}] as ?";
+            if (Type != null)
+                return $"[{Type.Name}] as ({string.Join(",", RegistrationTypes.Select(t => t.Name))})";
+            else if (Factory != null)
+                return $"[FACTORY] as ({string.Join(",", RegistrationTypes.Select(t => t.Name))})";
+            else
+                return "???";
+        }
+#endif
     }
 }

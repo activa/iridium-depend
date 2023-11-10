@@ -49,10 +49,10 @@ namespace Iridium.Depend
 
         private static readonly ConcurrentDictionary<Type, ListTypeInfo> _listTypes = new();
 
-        public static bool IsDeferredType(this Type type)
+        public static bool IsLazyType(this Type type)
         {
-            if (type.IsDeferredListType(out _))
-                return true;
+            if (type.IsDeferredListType())
+                return false;
 
             if (!type.IsGenericType || type.GenericTypeArguments.Length != 1)
                 return false;
@@ -63,6 +63,16 @@ namespace Iridium.Depend
                 return true;
 
             return false;
+        }
+
+        public static bool IsDeferredListType(this Type type)
+        {
+            return type.IsDeferredListType(out _);
+        }
+
+        public static bool IsDeferredType(this Type type)
+        {
+            return type.IsDeferredListType() || type.IsLazyType();
         }
 
         private static bool IsValidElementType(Type elementType)

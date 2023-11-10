@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -29,12 +30,28 @@ namespace Iridium.Depend.Extensions
                 IServiceRegistrationResult svcReg = null;
 
                 if (item.ImplementationType != null)
+                {
                     svcReg = repo.Register(item.ImplementationType).As(item.ServiceType);
+
+                    //Debug.WriteLine($"Registered type {item.ImplementationType.Name} as {item.ServiceType.Name}");
+                }
                 else if (item.ImplementationInstance != null)
+                {
                     svcReg = repo.Register(item.ImplementationInstance).As(item.ServiceType);
+
+                    //Debug.WriteLine($"Registered instance of type {item.ImplementationInstance.GetType().Name} as {item.ServiceType.Name}");
+                }
                 else if (item.ImplementationFactory != null)
+                {
                     svcReg = repo.Register((provider) => item.ImplementationFactory(provider.Get<System.IServiceProvider>())).As(item.ServiceType);
-                
+
+                    //Debug.WriteLine($"Registered implementation factory as {item.ServiceType.Name}");
+                }
+                else
+                {
+                    //Debug.WriteLine($"Skipped registration of {item.ServiceType}");
+                }
+
                 if (svcReg == null)
                     continue;
 

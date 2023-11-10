@@ -32,10 +32,10 @@ namespace Iridium.Depend
 {
     public class Live<T>
     {
-        private readonly Func<T> _factory;
+        private readonly Func<object> _factory;
 
-        public Live(Func<T> factory) => _factory = factory;
+        public Live(Func<object> factory) => _factory = factory;
 
-        public T Value() => _factory();
+        public T Value() => (T)_factory();
     }
 }

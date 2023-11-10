@@ -90,7 +90,7 @@ namespace Iridium.Depend
 
                 var parameterType = _constructorParameters[i].ParameterType;
 
-                if (serviceResolver.CanResolve(parameterType) || parameterType.IsDeferredType())
+                if (_constructorParameters[i].GetCustomAttribute<ParameterAttribute>() == null && (serviceResolver.CanResolve(parameterType) || parameterType.IsLazyType() || parameterType.IsDeferredListType()))
                 {
                    _parameterValues[i] = new ConstructorParameter(serviceProvider => serviceProvider.Resolve(parameterType));
                    resolvedServicesCount++;

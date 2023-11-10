@@ -113,4 +113,9 @@ namespace Iridium.Depend
             return parameters.Select(p => (p, p.GetCustomAttribute<InjectAttribute>() is { Required: true })).ToArray();
         }
     }
+
+    [AttributeUsage(AttributeTargets.Parameter)]
+    public class ParameterAttribute : Attribute
+    {
+    }
 }

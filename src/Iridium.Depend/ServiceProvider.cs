@@ -30,6 +30,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Reflection;
 
 namespace Iridium.Depend
 {
@@ -247,6 +248,8 @@ namespace Iridium.Depend
             }
         }
 
+        private static readonly MethodInfo _getMethod = typeof(ServiceProvider).GetMethod("Get", Type.EmptyTypes);
+
         private object CreateDeferredValue(Type type)
         {
             if (type.IsDeferredListType(out var itemType))
@@ -260,21 +263,26 @@ namespace Iridium.Depend
 
             var (lazyType, factory) = _factoryTypeCache.GetOrAdd(type, t =>
             {
-                var getMethod = typeof(ServiceProvider).GetMethod(nameof(ServiceProvider.Get), new[] { typeof(Type), typeof(object[]) });
+                //var getMethod = typeof(ServiceProvider).GetMethod(nameof(ServiceProvider.Get), new[] { typeof(Type), typeof(object[]) });
 
-                var lambda = Expression.Lambda(
-                    Expression.TypeAs(
-                        Expression.Call(
-                            Expression.Constant(this),
-                            getMethod,
-                            Expression.Constant(deferredType),
-                            Expression.Constant(Array.Empty<object>())
-                        ),
-                        deferredType
-                    )
-                ).Compile();
+                var getMethod = _getMethod.MakeGenericMethod(deferredType);
+                var methodType = typeof(Func<>).MakeGenericType(deferredType);
 
-                return (type.GetGenericTypeDefinition().MakeGenericType(deferredType), lambda);
+                var factory = Delegate.CreateDelegate(methodType, this, getMethod);
+                
+                // var lambda = Expression.Lambda(
+                //     Expression.TypeAs(
+                //         Expression.Call(
+                //             Expression.Constant(this),
+                //             getMethod,
+                //             Expression.Constant(deferredType),
+                //             Expression.Constant(Array.Empty<object>())
+                //         ),
+                //         deferredType
+                //     )
+                // ).Compile();
+
+                return (type.GetGenericTypeDefinition().MakeGenericType(deferredType), f: factory);
             });
 
             return Activator.CreateInstance(lazyType, factory);
