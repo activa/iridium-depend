@@ -76,9 +76,9 @@ namespace Iridium.Depend
                 return CreateDeferredValue(type);
             }
 
-            var service = _serviceResolver.Resolve(type);
+            var services = _serviceResolver.Resolve(type);
 
-            if (service == null)
+            if (services == null)
             {
                 var obj = _serviceResolver.ResolveDynamic(type, this);
 
@@ -86,45 +86,53 @@ namespace Iridium.Depend
                     return null;
             }
 
-            return _Resolve(service, type, parameters);
+            return _Resolve(services, type, parameters);
         }
 
-        private object _Resolve(ServiceDefinition service, Type type, ConstructorParameter[] parameters)
+        private object _Resolve(List<ServiceDefinition> services, Type type, ConstructorParameter[] parameters)
         {
             object instance;
 
-            if (service.RegisteredObject != null)
+            foreach (var service in services)
             {
-                instance = service.RegisteredObject;
-
-                SetInjectProperties(service.RegisteredObject, service.Type);
-            }
-            else
-            {
-                var scope = service.Lifetime switch
+                if (service.RegisteredObject != null)
                 {
-                    ServiceLifetime.Transient => null,
-                    ServiceLifetime.Scoped => _scope ?? throw new Exception("No active scope"),
-                    ServiceLifetime.Singleton => (_rootScope ?? _scope) ?? throw new Exception("No active scope"),
-                    _ => null
-                };
+                    instance = service.RegisteredObject;
 
-                if (scope == null)
-                {
-                    instance = _CreateService(type, service, parameters);
+                    SetInjectProperties(service.RegisteredObject, service.Type);
                 }
                 else
                 {
-                    instance = scope.GetOrStore(service, type, () => _CreateService(type,service,parameters));
+                    var scope = service.Lifetime switch
+                    {
+                        ServiceLifetime.Transient => null,
+                        ServiceLifetime.Scoped => _scope ?? throw new Exception("No active scope"),
+                        ServiceLifetime.Singleton => (_rootScope ?? _scope) ?? throw new Exception("No active scope"),
+                        _ => null
+                    };
+
+                    if (scope == null)
+                    {
+                        instance = _CreateService(type, service, parameters);
+                    }
+                    else
+                    {
+                        instance = scope.GetOrStore(service, type, () => _CreateService(type, service, parameters));
+                    }
+
+                    if (instance == null)
+                        continue;
                 }
+
+                foreach (var action in service.AfterResolveActions)
+                {
+                    action(instance, this);
+                }
+
+                return instance;
             }
 
-            foreach (var action in service.AfterResolveActions)
-            {
-                action(instance, this);
-            }
-
-            return instance;
+            throw new Exception($"Could not resolve service {type.Name}");
         }
 
         private IEnumerable _ResolveEnumerable(Type serviceType)
@@ -133,7 +141,7 @@ namespace Iridium.Depend
 
             foreach (var service in matchingServices)
             {
-                yield return _Resolve(service, serviceType, null);
+                yield return _Resolve(new List<ServiceDefinition>() {service}, serviceType, null);
             }
         }
 
@@ -150,8 +158,11 @@ namespace Iridium.Depend
                 obj = CallBestConstructor(serviceDefinition, type, parameters);
             }
 
+  //          return null;
+
             if (obj == null)
-                throw new Exception($"Unable to create instance of service {serviceDefinition.Type.Name}");
+                return null;
+//                throw new Exception($"Unable to create instance of service {serviceDefinition.Type.Name}");
 
             SetInjectProperties(obj, serviceDefinition.Type);
 

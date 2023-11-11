@@ -72,7 +72,7 @@ namespace Iridium.Depend
                 {
                     var list = _serviceMap.GetOrAdd(type, type1 => new List<ServiceDefinition>());
 
-                    list.Add(svc);
+                    list.Insert(0,svc);
                 }
             }
 
@@ -82,7 +82,7 @@ namespace Iridium.Depend
                 {
                     var list = _genericServiceMap.GetOrAdd(type, type1 => new List<ServiceDefinition>());
 
-                    list.Add(svc);
+                    list.Insert(0,svc);
                 }
             }
 
@@ -97,21 +97,21 @@ namespace Iridium.Depend
             }
         }
 
-        public ServiceDefinition Resolve(Type type)
+        public List<ServiceDefinition> Resolve(Type type)
         {
             if (_disposed)
                 throw new ObjectDisposedException(nameof(ServiceResolver));
 
             if (_serviceMap.TryGetValue(type, out var services))
             {
-                return services.Last();
+                return services;
             }
 
             if (type.IsGenericType)
             {
                 if (_genericServiceMap.TryGetValue(type.GetGenericTypeDefinition(), out var genericServices))
                 {
-                    return genericServices.Last();
+                    return genericServices;
                 }
             }
 

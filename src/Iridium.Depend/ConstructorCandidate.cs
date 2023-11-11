@@ -72,12 +72,12 @@ namespace Iridium.Depend
 
                         if (namedParameters.TryGetValue(constructorParameter.Name, out var namedParameter))
                         {
-                            if (!namedParameter.Type.IsAssignableTo(constructorParameterType))
-                                throw new Exception($"Parameter {namedParameter.Name} can't be assigned to type {constructorParameterType.Name}");
+                            if (namedParameter.Type.IsAssignableTo(constructorParameterType))
+                            {
+                                _parameterValues[i] = namedParameter;
 
-                            _parameterValues[i] = namedParameter;
-
-                            resolvedParametersCount++;
+                                resolvedParametersCount++;
+                            }
                         }
                     }
                 }

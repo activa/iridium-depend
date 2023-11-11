@@ -89,9 +89,9 @@ namespace Iridium.Depend.Test
 
             Assert.That(s1.Length, Is.EqualTo(3));
 
-            AssertX.AllSame<Service1>(svc1a, s1[0]);
+            AssertX.AllSame<Service1>(svc1a, s1[2]);
             AssertX.AllSame<Service2>(svc1b, s1[1]);
-            AssertX.AllSame<Service1>(svc1c, s1[2]);
+            AssertX.AllSame<Service1>(svc1c, s1[0]);
         }
 
         [Test]
@@ -129,9 +129,9 @@ namespace Iridium.Depend.Test
 
             Assert.That(s1.Count, Is.EqualTo(3));
 
-            AssertX.AllSame<Service1>(svc1a, s1[0]);
+            AssertX.AllSame<Service1>(svc1a, s1[2]);
             AssertX.AllSame<Service2>(svc1b, s1[1]);
-            AssertX.AllSame<Service1>(svc1c, s1[2]);
+            AssertX.AllSame<Service1>(svc1c, s1[0]);
         }
 
         [Test]
@@ -165,9 +165,9 @@ namespace Iridium.Depend.Test
 
             Assert.That(s1.Count, Is.EqualTo(3));
 
-            AssertX.AllSame<Service1>(svc1a, s1.Skip(0).First());
+            AssertX.AllSame<Service1>(svc1a, s1.Skip(2).First());
             AssertX.AllSame<Service2>(svc1b, s1.Skip(1).First());
-            AssertX.AllSame<Service1>(svc1c, s1.Skip(2).First());
+            AssertX.AllSame<Service1>(svc1c, s1.Skip(0).First());
         }
 
 
@@ -190,9 +190,9 @@ namespace Iridium.Depend.Test
 
             Assert.That(s1.Length, Is.EqualTo(3));
 
-            AssertX.AllSame<Service1>(svc1a, s1[0]);
+            AssertX.AllSame<Service1>(svc1a, s1[2]);
             AssertX.AllSame<Service2>(svc1b, s1[1]);
-            AssertX.AllSame<Service1>(svc1c, s1[2]);
+            AssertX.AllSame<Service1>(svc1c, s1[0]);
         }
 
         [Test]
@@ -226,9 +226,9 @@ namespace Iridium.Depend.Test
 
             Assert.That(sX.Services.Count(), Is.EqualTo(3));
 
-            AssertX.AllSame<Service1>(svc1a, sX.Services.Skip(0).First());
+            AssertX.AllSame<Service1>(svc1a, sX.Services.Skip(2).First());
             AssertX.AllSame<Service2>(svc1b, sX.Services.Skip(1).First());
-            AssertX.AllSame<Service1>(svc1c, sX.Services.Skip(2).First());
+            AssertX.AllSame<Service1>(svc1c, sX.Services.Skip(0).First());
         }
 
         [Test]
@@ -263,9 +263,9 @@ namespace Iridium.Depend.Test
 
             Assert.That(s1.Count, Is.EqualTo(3));
 
-            AssertX.AllSame<Service1>(svc1a, s1[0]);
+            AssertX.AllSame<Service1>(svc1a, s1[2]);
             AssertX.AllSame<Service2>(svc1b, s1[1]);
-            AssertX.AllSame<Service1>(svc1c, s1[2]);
+            AssertX.AllSame<Service1>(svc1c, s1[0]);
         }
 
         [Test]
@@ -356,9 +356,9 @@ namespace Iridium.Depend.Test
 
             Assert.That(s1.Count, Is.EqualTo(3));
 
-            AssertX.AllSame<Service1>(svc1a, s1[0]);
+            AssertX.AllSame<Service1>(svc1a, s1[2]);
             AssertX.AllSame<Service2>(svc1b, s1[1]);
-            AssertX.AllSame<Service1>(svc1c, s1[2]);
+            AssertX.AllSame<Service1>(svc1c, s1[0]);
         }
 
         [Test]
@@ -380,9 +380,9 @@ namespace Iridium.Depend.Test
 
             Assert.That(s1.Count, Is.EqualTo(3));
 
-            AssertX.AllSame<Service1>(svc1a, s1[0]);
+            AssertX.AllSame<Service1>(svc1a, s1[2]);
             AssertX.AllSame<Service2>(svc1b, s1[1]);
-            AssertX.AllSame<Service1>(svc1c, s1[2]);
+            AssertX.AllSame<Service1>(svc1c, s1[0]);
         }
 
         private class CustomListGeneric<T> : List<T>

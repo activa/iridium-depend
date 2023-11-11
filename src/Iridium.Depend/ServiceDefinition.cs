@@ -31,7 +31,7 @@ using System.Linq;
 
 namespace Iridium.Depend
 {
-    [DebuggerDisplay("{ToString()}")]
+    [DebuggerDisplay("{DebugView()}")]
     internal class ServiceDefinition
     {
         private List<Type> _registrationTypes;
@@ -108,8 +108,7 @@ namespace Iridium.Depend
             BestConstructorCandidate = _serviceConstructors.Select(_ => _.ConstructorCandidate).OrderByDescending(_ => _.MatchScore).FirstOrDefault();
         }
 
-#if DEBUG
-        public override string ToString()
+        public string DebugView()
         {
             if (RegistrationTypes == null && Type != null)
                 return $"[{Type.Name}] as ?";
@@ -120,6 +119,5 @@ namespace Iridium.Depend
             else
                 return "???";
         }
-#endif
     }
 }

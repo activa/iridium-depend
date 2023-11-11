@@ -56,7 +56,8 @@ namespace Iridium.Depend
                         {
                             instance = factory();
 
-                            _genericServiceInstances.TryAdd((service, typeArgs), instance);
+                            if (instance != null)
+                                _genericServiceInstances.TryAdd((service, typeArgs), instance);
                         }
                     }
                 }
@@ -71,7 +72,8 @@ namespace Iridium.Depend
                         {
                             instance = factory();
 
-                            _serviceInstances.TryAdd(service, instance);
+                            if (instance != null)
+                                _serviceInstances.TryAdd(service, instance);
                         }
                     }
                 }
